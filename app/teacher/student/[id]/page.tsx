@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import AcceptDraftButton from "@/components/teacher/AcceptDraftButton";
 import ExtensionControl from "@/components/teacher/ExtensionControl";
-import { isTeacher } from "@/lib/auth";
+import ParentLink from "@/components/teacher/ParentLink";
+import { isTeacher, reportToken } from "@/lib/auth";
 import { getStages, getStudent, listDrafts, listExtensions, listSubmissions, studentTotals } from "@/lib/data";
 import { UUID_RE } from "@/lib/repo";
 import { ASSIGNMENTS, ATTENDANCE_MAX, formatUB, now, rangeLabel, windowState } from "@/lib/stages";
@@ -35,9 +36,12 @@ export default async function TeacherStudentPage({ params }: { params: Promise<{
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-display text-2xl font-bold">{student.name}</h1>
           <span className="rounded-lg bg-slate-100 px-2 py-1 font-mono font-bold tracking-widest">{student.login_code}</span>
-          <Link href={`/teacher/report/${id}`} className="ml-auto rounded-xl bg-violet-600 px-4 py-2 font-bold text-white hover:bg-violet-700">
-            📄 Эцэг эхийн тайлан
-          </Link>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <ParentLink path={`/report/${id}.${reportToken(id)}`} />
+            <Link href={`/teacher/report/${id}`} className="rounded-xl bg-violet-600 px-4 py-2 font-bold text-white hover:bg-violet-700">
+              📄 Явцын тайлан
+            </Link>
+          </span>
         </div>
         <p className="mt-2 text-slate-600">
           Нийт: <b className="font-display text-lg">{totals.total}</b> (ирц/идэвх {totals.attendance ?? "—"}/{ATTENDANCE_MAX}, бүтээл {totals.works}, нэмэлт {totals.bonus})

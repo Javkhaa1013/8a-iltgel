@@ -80,3 +80,14 @@ export function generateCode() {
   return Array.from({ length: 6 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
 }
 export const normalizeCode = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+// ---- Эцэг эхийн нууц холбоос ----
+// Нэвтрэхгүйгээр зөвхөн тухайн хүүхдийн тайланг үзнэ. Холбоос нь таахын аргагүй.
+
+export const reportToken = (studentId: string) =>
+  createHmac("sha256", secret()).update("report:" + studentId).digest("hex").slice(0, 32);
+
+export function verifyReportToken(studentId: string, token: string) {
+  if (!token || token.length !== 32) return false;
+  return safeEqual(token, reportToken(studentId));
+}

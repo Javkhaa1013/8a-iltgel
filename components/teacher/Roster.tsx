@@ -26,6 +26,15 @@ export default function Roster({ students }: { students: Student[] }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-100 lg:col-span-2">
+        <span className="font-semibold text-slate-600">💾 Нөөц / архив:</span>
+        <a href="/api/export" className="rounded-xl bg-slate-900 px-3 py-2 font-bold text-white hover:bg-slate-700">
+          ⬇️ Бүх өгөгдлийг татах (JSON)
+        </a>
+        <span className="text-xs text-slate-500">
+          Сурагчид, бүтээл, хувилбар, сэтгэгдэл, үнэлгээ, зургийн холбоосууд. Улирлын эцэст эсвэл сард нэг удаа татаж хадгалаарай.
+        </span>
+      </div>
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <h2 className="font-display font-bold">➕ Сурагч нэмэх</h2>
         <p className="mt-1 text-sm text-slate-500">Мөр бүрт нэг нэр. Excel-ээс хуулж тавьж болно. Хүүхэд бүрт нэвтрэх код автоматаар үүснэ.</p>

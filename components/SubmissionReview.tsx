@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatUB } from "@/lib/stages";
 import { wordDiff } from "@/lib/textTools";
+import { loadSnippets, saveSnippet } from "@/lib/snippets";
 import type { CommentRole } from "@/lib/types";
 import type { CommentView, VersionView } from "@/lib/views";
 
@@ -37,6 +38,11 @@ export default function SubmissionReview({ submission, comments, role, canCommen
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [zoom, setZoom] = useState<string | null>(null);
+  // Багшийн хэвшмэл сэтгэгдлүүд (браузерт хадгалагдсан нэмэлтүүдтэй)
+  const [snippets, setSnippets] = useState<string[]>([]);
+  useEffect(() => {
+    if (role === "teacher") setSnippets(loadSnippets(submission.kind));
+  }, [role, submission.kind]);
 
   const currentNo = versions.at(-1)?.no ?? null;
   const [viewNo, setViewNo] = useState<number | null>(currentNo);
@@ -253,6 +259,21 @@ export default function SubmissionReview({ submission, comments, role, canCommen
         {draft && (
           <div ref={formRef} className="no-print rounded-2xl bg-white p-4 shadow-md ring-2 ring-violet-400">
             {draft.quote && <blockquote className="mb-2 border-l-4 border-violet-400 pl-2 font-serif text-sm italic text-slate-600">“{draft.quote.slice(0, 200)}”</blockquote>}
+            {role === "teacher" && snippets.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-1">
+                {snippets.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setBody((b) => (b ? b.replace(/\s*$/, " ") + t : t))}
+                    title={t}
+                    className="max-w-52 truncate rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-amber-100 hover:text-amber-800"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
             <textarea
               autoFocus
               value={body}
@@ -269,6 +290,15 @@ export default function SubmissionReview({ submission, comments, role, canCommen
               <button onClick={() => (setDraft(null), setError(""))} className="rounded-lg px-3 py-2 text-sm text-slate-500">
                 Болих
               </button>
+              {role === "teacher" && body.trim().length > 4 && !snippets.includes(body.trim()) && (
+                <button
+                  onClick={() => saveSnippet(body) && setSnippets(loadSnippets(submission.kind))}
+                  title="Энэ хэллэгийг дараа дахин ашиглахаар хадгална"
+                  className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-50"
+                >
+                  ⭐ Хэллэгээ хадгалах
+                </button>
+              )}
             </div>
           </div>
         )}

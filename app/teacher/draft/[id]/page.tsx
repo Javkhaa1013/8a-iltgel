@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Nav from "@/components/Nav";
+import ZoomImage from "@/components/ZoomImage";
 import AcceptDraftButton from "@/components/teacher/AcceptDraftButton";
 import { isTeacher } from "@/lib/auth";
 import { findStage, getStages, getStudent, listDrafts, listSubmissions } from "@/lib/data";
@@ -47,8 +48,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
             draft.images.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {draft.images.map((src) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={src} src={src} alt="" className="w-full rounded-xl ring-1 ring-slate-200" />
+                  <ZoomImage key={src} src={src} className="w-full rounded-xl ring-1 ring-slate-200" />
                 ))}
               </div>
             ) : (

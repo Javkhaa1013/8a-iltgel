@@ -23,7 +23,8 @@ export default function Schedule({ stages }: { stages: Stage[] }) {
     <section className="max-w-3xl rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
       <h2 className="font-display font-bold">🗓 Хуваарь</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Сурагчид зөвхөн эхлэх өдрийн 00:00-оос дуусах өдрийн 23:59 хүртэл (Улаанбаатарын цагаар) оруулна. Хугацаа дууссаны дараа{" "}
+        Сурагчид эхлэх өдрийн 00:00-оос дуусах хүртэл (Улаанбаатарын цагаар) оруулна. Дуусах цагийг хоосон орхивол тухайн өдрийн 23:59 болно.
+        Хугацаа дууссаны дараа{" "}
         {PEER_REVIEW_DAYS} хоног хөндлөнгийн үнэлгээ нээлттэй. Тодорхой сурагчид сунгалт өгөхдөө сурагчийн нэр дээр дарна.
       </p>
       <table className="mt-4 w-full text-sm">
@@ -32,6 +33,7 @@ export default function Schedule({ stages }: { stages: Stage[] }) {
             <th className="p-2">Даалгавар</th>
             <th className="p-2">Эхлэх</th>
             <th className="p-2">Дуусах</th>
+            <th className="p-2">Цаг</th>
             <th className="p-2">Оноо</th>
           </tr>
         </thead>
@@ -47,6 +49,15 @@ export default function Schedule({ stages }: { stages: Stage[] }) {
               </td>
               <td className="p-2">
                 <input type="date" value={s.end} onChange={(e) => set(s.id, { end: e.target.value })} className="rounded-lg border border-slate-200 px-2 py-1" />
+              </td>
+              <td className="p-2">
+                <input
+                  type="time"
+                  value={s.endTime ?? ""}
+                  onChange={(e) => set(s.id, { endTime: e.target.value || undefined })}
+                  className="rounded-lg border border-slate-200 px-2 py-1"
+                  title="Хоосон бол 23:59"
+                />
               </td>
               <td className="p-2">
                 <input type="number" min={0} max={100} value={s.max} onChange={(e) => set(s.id, { max: Number(e.target.value) })} className="w-16 rounded-lg border border-slate-200 px-2 py-1" />

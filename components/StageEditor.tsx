@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUB } from "@/lib/stages";
+import ZoomImage from "@/components/ZoomImage";
 import { uploadImage } from "@/lib/uploadImage";
 
 type Content = { title: string; body: string; images: string[]; updated_at: string };
@@ -206,8 +207,7 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
               >
                 {images.map((src, i) => (
                   <div key={src + i} className="relative overflow-hidden rounded-xl ring-1 ring-slate-200">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={`Хуудас ${i + 1}`} className="aspect-[3/4] w-full object-cover" />
+                    <ZoomImage src={src} alt={`Хуудас ${i + 1}`} className="aspect-[3/4] w-full object-cover" />
                     <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 text-xs font-bold text-white">{i + 1}</span>
                     <button
                       onClick={() => (setImages((arr) => arr.filter((_, j) => j !== i)), touch())}
@@ -315,10 +315,7 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
               {previous.kind === "image" ? (
                 <div className="mt-2 grid grid-cols-3 gap-1">
                   {previous.images.map((src) => (
-                    <a key={src} href={src} target="_blank" rel="noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="aspect-[3/4] w-full rounded object-cover" />
-                    </a>
+                    <ZoomImage key={src} src={src} className="aspect-[3/4] w-full rounded object-cover" />
                   ))}
                 </div>
               ) : (

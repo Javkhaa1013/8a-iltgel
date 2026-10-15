@@ -22,6 +22,10 @@ export default function ScorePanel({ id, max, score, selfAvg, peerAvg, publishab
   const [value, setValue] = useState(score === null ? "" : String(score));
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Шалгуурын үнэлгээнээс санал болгох оноо: хөндлөнгийнх 75%, өөрийнх 25% (хүүхэд өөрийгөө өндөр үнэлдэг тул)
+  const round = (n: number) => Math.round(n * 2) / 2;
+  const suggested = peerAvg !== null && selfAvg !== null ? round(peerAvg * 0.75 + selfAvg * 0.25) : peerAvg ?? selfAvg;
+
   async function patch(body: Record<string, unknown>, okText: string) {
     setMsg(null);
     const res = await fetch(`/api/submissions/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -52,8 +56,17 @@ export default function ScorePanel({ id, max, score, selfAvg, peerAvg, publishab
       >
         Хадгалах
       </button>
-      <span className="text-sm text-amber-900">
+      <span className="flex flex-wrap items-center gap-2 text-sm text-amber-900">
         🙋 Өөрийн: <b>{selfAvg ?? "—"}</b> · 👥 Хөндлөнгийн дундаж: <b>{peerAvg ?? "—"}</b>
+        {suggested !== null && (
+          <button
+            onClick={() => setValue(String(suggested))}
+            title="Хүүхдийн өөрийн ба найзуудын шалгуурын дунджаас тооцсон оноо. Дарвал талбарт бөглөнө, та засч болно."
+            className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100"
+          >
+            💡 Санал: {suggested} → бөглөх
+          </button>
+        )}
       </span>
       {publishable && (
         <span className="ml-auto flex flex-wrap items-center gap-2">
