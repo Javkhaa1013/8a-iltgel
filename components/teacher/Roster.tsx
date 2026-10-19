@@ -80,6 +80,16 @@ export default function Roster({ students }: { students: Student[] }) {
                 <td className="whitespace-nowrap p-2 text-right">
                   <button
                     disabled={busy}
+                    onClick={() => {
+                      const code = prompt(`${s.name}-ийн кодыг гараар оруулах (6 тэмдэгт). Жишээ нь хэвлэсэн карт дээрх хуучин код.`, s.login_code);
+                      if (code && code.trim().toUpperCase() !== s.login_code) call(`/api/students/${s.id}`, "PATCH", { login_code: code.trim() });
+                    }}
+                    className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
+                  >
+                    ✏️ Код оруулах
+                  </button>
+                  <button
+                    disabled={busy}
                     onClick={() => confirm(`${s.name}-д шинэ код үүсгэх үү? Хуучин код ажиллахаа болино.`) && call(`/api/students/${s.id}`, "PATCH", { reset_code: true })}
                     className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
                   >

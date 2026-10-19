@@ -75,9 +75,9 @@ export async function currentStudent(): Promise<Student | null> {
 }
 
 // Андуурагдах тэмдэгтгүй (0/O, 1/I/L) 6 оронтой код
-const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export function generateCode() {
-  return Array.from({ length: 6 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
+  return Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 }
 export const normalizeCode = (code: string) => code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 

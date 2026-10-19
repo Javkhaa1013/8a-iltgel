@@ -1,4 +1,4 @@
-import { generateCode, isTeacher } from "@/lib/auth";
+import { CODE_ALPHABET, generateCode, isTeacher, normalizeCode } from "@/lib/auth";
 import { getStudent, listStudents } from "@/lib/data";
 import { fail, ok, readJson, score, str } from "@/lib/http";
 import { repo } from "@/lib/repo";
@@ -30,6 +30,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
     patch.bonus_score = bonus;
   }
   if (body.bonus_note !== undefined) patch.bonus_note = str(body.bonus_note, 500);
+  // Хуучин кодыг буцаах, эсвэл багш өөрөө код сонгох (жишээ нь хэвлэсэн карттай тааруулах)
+  if (body.login_code !== undefined) {
+    const code = normalizeCode(String(body.login_code));
+    if (code.length !== 6 || [...code].some((c) => !CODE_ALPHABET.includes(c)))
+      return fail("Код 6 тэмдэгт байх ёстой (андуурагдах 0, O, 1, I, L тэмдэгт болохгүй)");
+    const taken = (await listStudents()).find((s) => s.login_code === code && s.id !== id);
+    if (taken) return fail(`Энэ кодыг ${taken.name} ашиглаж байна`);
+    patch.login_code = code;
+  }
   if (body.reset_code === true) {
     const used = new Set((await listStudents()).map((s) => s.login_code));
     let code = generateCode();
