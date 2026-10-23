@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import StudentGuide from "@/components/StudentGuide";
 import { currentStudent } from "@/lib/auth";
 import { getStages, listComments, listExtensions, listReviews, listStudents, listSubmissions, peerReviewOpen, peerTargets } from "@/lib/data";
-import { ASSIGNMENTS, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
+import { ASSIGNMENTS, assignmentMax, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Миний даалгаврууд · 8А" };
@@ -81,7 +81,7 @@ export default async function MePage() {
         {ASSIGNMENTS.map((a) => (
           <section key={a.id} className="mt-8">
             <h2 className="mb-3 font-display text-lg font-bold">
-              {a.emoji} {a.name} <span className="text-sm font-normal text-slate-400">({a.max} оноо)</span>
+              {a.emoji} {a.name} <span className="text-sm font-normal text-slate-400">({assignmentMax(stages, a.id)} оноо)</span>
             </h2>
             <div className="grid gap-3 md:grid-cols-3">
               {stages

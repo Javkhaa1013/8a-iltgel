@@ -1,14 +1,25 @@
 import { isTeacher } from "@/lib/auth";
-import { saveStages } from "@/lib/data";
+import { getStages, listDrafts, listSubmissions, saveStages } from "@/lib/data";
 import { fail, ok, readJson } from "@/lib/http";
-import { sanitizeStages } from "@/lib/stages";
+import { parseStages } from "@/lib/stages";
 
-// Багш: хуваарийн огноо, дээд оноог өөрчилнө
+// Багш: хуваарийг бүрэн удирдана (шат нэмэх, нэр/төрөл/огноо/цаг/оноо/дараалал).
+// Бүтээл эсвэл ноорог бүхий шатыг устгахыг зөвшөөрөхгүй — хүүхдийн ажил алдагдахаас сэргийлнэ.
 export async function PUT(req: Request) {
   if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+
   const { stages } = await readJson(req);
-  const clean = sanitizeStages(stages);
-  if (!clean) return fail("Огноо буруу байна (эхлэх өдөр дуусах өдрөөс өмнө байх ёстой)");
-  await saveStages(clean);
-  return ok(clean);
+  const parsed = parseStages(stages);
+  if (!parsed.ok) return fail(parsed.error);
+
+  const keep = new Set(parsed.stages.map((s) => s.id));
+  const removed = (await getStages()).filter((s) => !keep.has(s.id));
+  for (const s of removed) {
+    const [subs, drafts] = await Promise.all([listSubmissions({ stage_id: s.id }), listDrafts({ stage_id: s.id })]);
+    if (subs.length || drafts.length)
+      return fail(`"${s.label}" шатад ${subs.length} бүтээл, ${drafts.length} ноорог байгаа тул устгах боломжгүй. Эхлээд тэдгээрийг устгана уу.`);
+  }
+
+  await saveStages(parsed.stages);
+  return ok(parsed.stages);
 }

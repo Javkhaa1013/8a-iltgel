@@ -2,10 +2,14 @@
 
 export type AssignmentId = "article" | "reflection";
 
-export const ASSIGNMENTS: { id: AssignmentId; name: string; emoji: string; max: number }[] = [
-  { id: "article", name: "Нийтлэл", emoji: "📰", max: 30 },
-  { id: "reflection", name: "Эргэцүүлэл", emoji: "💭", max: 20 },
+export const ASSIGNMENTS: { id: AssignmentId; name: string; emoji: string }[] = [
+  { id: "article", name: "Нийтлэл", emoji: "📰" },
+  { id: "reflection", name: "Эргэцүүлэл", emoji: "💭" },
 ];
+
+/** Даалгаврын нийт оноо — шатуудынхаа нийлбэр (багш шат нэмэхэд өөрөө өөрчлөгдөнө) */
+export const assignmentMax = (stages: Stage[], a: AssignmentId) =>
+  stages.filter((s) => s.assignment === a).reduce((n, s) => n + s.max, 0);
 
 export const ATTENDANCE_MAX = 50;
 
@@ -91,16 +95,63 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 // "2026-13-45" мэт байхгүй огноог татгалзана (Invalid Date болбол үе шат бүгд "хаалттай" болно)
 const isRealDate = (v: unknown) => typeof v === "string" && DATE_RE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`)) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
 
-/** Багшийн илгээсэн хуваарийг шалгана: id, төрөл өөрчлөгдөхгүй, зөвхөн огноо ба оноо */
-export function sanitizeStages(input: unknown): Stage[] | null {
-  if (!Array.isArray(input)) return null;
+const SLUG = /^[a-z0-9-]{1,40}$/;
+const newId = (a: AssignmentId) => `${a}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+export type ParsedStages = { ok: true; stages: Stage[] } | { ok: false; error: string };
+
+/**
+ * Багшийн илгээсэн хуваарийг шалгана. Багш шат нэмэх, нэр/төрөл/огноо/оноог өөрчилж болно.
+ * id нь хэвээр үлдэнэ — сурагчдын бүтээл id-гаар холбогддог. Шинэ шатад id автоматаар үүснэ.
+ */
+export function parseStages(input: unknown): ParsedStages {
+  if (!Array.isArray(input) || !input.length) return { ok: false, error: "Хуваарь хоосон байна" };
+  if (input.length > 20) return { ok: false, error: "Хэт олон шат (20-оос ихгүй)" };
+
   const out: Stage[] = [];
-  for (const def of DEFAULT_STAGES) {
-    const s = input.find((x) => x && x.id === def.id) ?? def;
-    if (!isRealDate(s.start) || !isRealDate(s.end) || s.start > s.end) return null;
-    const max = Number(s.max);
+  const ids = new Set<string>();
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") return { ok: false, error: "Шатны мэдээлэл буруу байна" };
+    const s = raw as Record<string, unknown>;
+    const assignment: AssignmentId | null = s.assignment === "article" || s.assignment === "reflection" ? s.assignment : null;
+    if (!assignment) return { ok: false, error: "Даалгавар буруу байна" };
+
+    const label = String(s.label ?? "").trim().slice(0, 40);
+    if (!label) return { ok: false, error: "Шатны нэрийг бөглөнө үү" };
+    const kind: Stage["kind"] | null = s.kind === "image" || s.kind === "text" ? s.kind : null;
+    if (!kind) return { ok: false, error: `"${label}": төрөл нь зураг эсвэл текст байна` };
+    if (!isRealDate(s.start) || !isRealDate(s.end)) return { ok: false, error: `"${label}": огноо буруу байна` };
+    if ((s.start as string) > (s.end as string)) return { ok: false, error: `"${label}": эхлэх огноо дуусах огнооноос хойш байна` };
+    const max = Number(s.max ?? 0);
+    if (!Number.isFinite(max) || max < 0 || max > 100) return { ok: false, error: `"${label}": оноо 0-100 хооронд байна` };
     const endTime = typeof s.endTime === "string" && TIME_RE.test(s.endTime) ? s.endTime : undefined;
-    out.push({ ...def, start: s.start, end: s.end, max: Number.isFinite(max) && max >= 0 && max <= 100 ? max : def.max, ...(endTime ? { endTime } : {}) });
+
+    let id = typeof s.id === "string" && SLUG.test(s.id) ? s.id : newId(assignment);
+    while (ids.has(id)) id = newId(assignment);
+    ids.add(id);
+
+    out.push({
+      id,
+      assignment,
+      label,
+      kind,
+      start: s.start as string,
+      end: s.end as string,
+      max: Math.round(max * 2) / 2,
+      ...(endTime ? { endTime } : {}),
+      ...(s.final === true ? { final: true } : {}),
+    });
   }
-  return out;
+
+  for (const a of ASSIGNMENTS) {
+    if (out.filter((s) => s.assignment === a.id && s.final).length > 1)
+      return { ok: false, error: `${a.name}: "сайтад нийтлэх шат" нэгээс олон байж болохгүй` };
+  }
+  return { ok: true, stages: out };
+}
+
+/** Хадгалсан тохиргоог унших (буруу бол анхдагчийг ашиглана) */
+export function sanitizeStages(input: unknown): Stage[] | null {
+  const r = parseStages(input);
+  return r.ok ? r.stages : null;
 }

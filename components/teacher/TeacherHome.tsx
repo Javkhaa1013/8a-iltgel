@@ -95,7 +95,7 @@ export default function TeacherHome(data: TeacherData) {
         {tab === "publish" && <PublishList {...data} />}
         {tab === "integrity" && <Integrity {...data} />}
         {tab === "roster" && <Roster students={data.students} />}
-        {tab === "schedule" && <Schedule stages={data.stages} />}
+        {tab === "schedule" && <Schedule {...data} />}
       </div>
     </div>
   );
