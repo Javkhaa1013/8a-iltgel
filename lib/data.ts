@@ -10,28 +10,85 @@ import {
   windowState,
   type Stage,
 } from "./stages";
-import type { Comment, Draft, Extension, Review, Student, Submission, Version } from "./types";
+import type { Class, Comment, Draft, Extension, Review, Student, Submission, Teacher, Version } from "./types";
 
-// ---- Хуваарь ----
+// ---- Анги ----
 
-export async function getStages(): Promise<Stage[]> {
-  const [row] = await repo().select<{ key: string; value: unknown }>("settings", { key: "stages" });
-  return (row && sanitizeStages(row.value)) || DEFAULT_STAGES;
+/** Анхны ангийг үүсгэж, ангигүй сурагчдыг түүнд хамруулна (нэг удаагийн шилжилт) */
+export async function listClasses(): Promise<Class[]> {
+  let rows = await repo().select<Class>("classes");
+  if (!rows.length) {
+    await repo().insert("classes", { name: "8А" });
+    rows = await repo().select<Class>("classes");
+  }
+  rows = rows.sort((a, b) => a.name.localeCompare(b.name, "mn"));
+  const orphans = (await repo().select<Student>("students")).filter((s) => !s.class_id);
+  if (orphans.length) {
+    const first = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+    for (const o of orphans) await repo().update("students", { id: o.id }, { class_id: first.id });
+  }
+  return rows;
 }
 
-export async function saveStages(stages: Stage[]) {
-  const existing = await repo().select("settings", { key: "stages" });
-  if (existing.length) await repo().update("settings", { key: "stages" }, { value: stages });
-  else await repo().insert("settings", { key: "stages", value: stages });
+export async function getClass(id: string) {
+  return (await listClasses()).find((c) => c.id === id) ?? null;
+}
+
+/** Анги заагаагүй үед ашиглах анхны анги */
+export async function defaultClassId() {
+  const rows = await listClasses();
+  return [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at))[0].id;
+}
+
+/** Ангийн багш нар (нууц үгийн хэш хасаад) */
+export async function listTeachers() {
+  const rows = await repo().select<Teacher>("teachers");
+  return rows.map((t) => ({ id: t.id, name: t.name, class_id: t.class_id ?? null }));
+}
+
+// ---- Хуваарь (анги тус бүрт) ----
+
+const stagesKey = (classId: string) => `stages:${classId}`;
+
+export async function getStages(classId: string): Promise<Stage[]> {
+  const [row] = await repo().select<{ key: string; value: unknown }>("settings", { key: stagesKey(classId) });
+  if (row) return sanitizeStages(row.value) || DEFAULT_STAGES;
+  // Анги нэмэхээс өмнөх нийтлэг хуваарь — анхны ангид хэвээр үлдэнэ
+  if (classId === (await defaultClassId())) {
+    const [legacy] = await repo().select<{ value: unknown }>("settings", { key: "stages" });
+    if (legacy) return sanitizeStages(legacy.value) || DEFAULT_STAGES;
+  }
+  return DEFAULT_STAGES;
+}
+
+export async function saveStages(classId: string, stages: Stage[]) {
+  const key = stagesKey(classId);
+  const existing = await repo().select("settings", { key });
+  if (existing.length) await repo().update("settings", { key }, { value: stages });
+  else await repo().insert("settings", { key, value: stages });
+}
+
+/** Сурагчийн бүтээл аль ангийн хуваариар явахыг тодорхойлно */
+export async function stagesForSubmission(sub: Submission) {
+  const student = await getStudent(sub.student_id);
+  return student ? await getStages(student.class_id) : DEFAULT_STAGES;
 }
 
 export const findStage = (stages: Stage[], id: string) => stages.find((s) => s.id === id);
 
 // ---- Сурагч, бүтээл ----
 
-export async function listStudents() {
-  const rows = await repo().select<Student>("students");
+/** classId өгвөл зөвхөн тухайн ангийн сурагчид */
+export async function listStudents(classId?: string) {
+  await listClasses(); // ангигүй сурагч үлдээхгүй
+  const rows = await repo().select<Student>("students", classId ? { class_id: classId } : {});
   return rows.sort((a, b) => a.name.localeCompare(b.name, "mn"));
+}
+
+/** Тухайн ангийн сурагчдын бүх бүтээл */
+export async function listClassSubmissions(classId: string) {
+  const ids = new Set((await listStudents(classId)).map((s) => s.id));
+  return (await listSubmissions()).filter((s) => ids.has(s.student_id));
 }
 
 export async function getStudent(id: string) {
@@ -127,6 +184,12 @@ export async function saveSubmission(studentId: string, stageId: string, content
         student_id: studentId,
         stage_id: stageId,
         paste_chars: pastedDelta,
+        // Supabase-ийн default-уудыг локал JSON хадгалалтад ч бичнэ —
+        // байхгүй бол уншсан тоо (view_count) харьцуулж шинэчлэхэд таарахгүй
+        teacher_score: null,
+        published: false,
+        view_count: 0,
+        author_display: "short",
         submitted_at: at,
         updated_at: at,
       })
@@ -193,8 +256,13 @@ export async function accessTo(
   const me = viewer.student;
   if (!me) return null;
   if (submission.student_id === me.id) return "self";
+  // Хөндлөнгийн үнэлгээ зөвхөн өөрийн анги дотор
+  const owner = await getStudent(submission.student_id);
+  if (!owner || owner.class_id !== me.class_id) return null;
   if (!peerReviewOpen(stage, await getExtension(me.id, stage.id))) return null;
-  const [students, subs] = await Promise.all([listStudents(), listSubmissions({ stage_id: stage.id })]);
+  const students = await listStudents(me.class_id);
+  const ids = new Set(students.map((x) => x.id));
+  const subs = (await listSubmissions({ stage_id: stage.id })).filter((x) => ids.has(x.student_id));
   return peerTargets(stage, me.id, students, subs).some((s) => s.id === submission.id) ? "peer" : null;
 }
 

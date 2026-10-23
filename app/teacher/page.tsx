@@ -1,25 +1,38 @@
 import Nav from "@/components/Nav";
 import TeacherHome from "@/components/teacher/TeacherHome";
 import TeacherLogin from "@/components/TeacherLogin";
-import { isTeacher } from "@/lib/auth";
-import { getStages, listDrafts, listExtensions, listReviews, listStudents, listSubmissions, peerTargets, studentTotals } from "@/lib/data";
+import { currentTeacher } from "@/lib/auth";
+import { activeClassId } from "@/lib/auth";
+import { listTeachers } from "@/lib/data";
+import { getClass, getStages, listClasses, listDrafts, listExtensions, listReviews, listStudents, listSubmissions, peerTargets, studentTotals } from "@/lib/data";
 import { now, peerReviewEnd, stageEnd } from "@/lib/stages";
 import { overlap, wordCount } from "@/lib/textTools";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Багшийн самбар · 8А" };
 
-export default async function TeacherPage() {
-  if (!(await isTeacher())) return <TeacherLogin />;
 
-  const [stages, students, subs, extensions, drafts, reviews] = await Promise.all([
-    getStages(),
-    listStudents(),
+export default async function TeacherPage() {
+  const session = await currentTeacher();
+  if (!session) return <TeacherLogin />;
+  const classId = await activeClassId(session);
+
+  const [stages, students, allSubs, allExtensions, allDrafts, reviews, classes, cls] = await Promise.all([
+    getStages(classId),
+    listStudents(classId),
     listSubmissions(),
     listExtensions(),
     listDrafts(),
     listReviews(),
+    listClasses(),
+    getClass(classId),
   ]);
+  const teachers = session.isAdmin ? await listTeachers() : [];
+  // Зөвхөн энэ ангийн сурагчдын мэдээлэл
+  const mine = new Set(students.map((s) => s.id));
+  const subs = allSubs.filter((s) => mine.has(s.student_id));
+  const extensions = allExtensions.filter((e) => mine.has(e.student_id));
+  const drafts = allDrafts.filter((d) => mine.has(d.student_id));
   const at = now();
 
   // Хөндлөнгийн үнэлгээний хяналт: хугацаа нь дууссан үе шат бүрд хэн хэнийг үнэлэх, үнэлсэн эсэх
@@ -82,6 +95,11 @@ export default async function TeacherPage() {
           view_count: s.view_count,
           updated_at: s.updated_at,
         }))}
+        classes={classes}
+        activeClass={classId}
+        teacherName={session.name}
+        isAdmin={session.isAdmin}
+        teachers={teachers}
         extensions={extensions}
         drafts={drafts.map((d) => ({ id: d.id, student_id: d.student_id, stage_id: d.stage_id, updated_at: d.updated_at }))}
         flags={flags.sort((x, y) => y.percent - x.percent)}

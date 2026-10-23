@@ -17,7 +17,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const [draft] = await listDrafts({ id });
-  const stage = draft && findStage(await getStages(), draft.stage_id);
+  const stage = draft && findStage(await getStages((await getStudent(draft.student_id))!.class_id), draft.stage_id);
   if (!draft || !stage) notFound();
   const [student, [sub]] = await Promise.all([getStudent(draft.student_id), listSubmissions({ student_id: draft.student_id, stage_id: stage.id })]);
   const assignment = ASSIGNMENTS.find((a) => a.id === stage.assignment)!;

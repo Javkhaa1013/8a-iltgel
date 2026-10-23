@@ -29,7 +29,11 @@ export default async function Report({ id, forParent = false }: { id: string; fo
   const student = await getStudent(id);
   if (!student) notFound();
 
-  const [stages, subs, exts] = await Promise.all([getStages(), listSubmissions({ student_id: id }), listExtensions({ student_id: id })]);
+  const [stages, subs, exts] = await Promise.all([
+    getStages(student.class_id),
+    listSubmissions({ student_id: id }),
+    listExtensions({ student_id: id }),
+  ]);
   const comments = new Map<string, Comment[]>();
   const versions = new Map<string, Version[]>();
   const [allReviews, allStudents, allSubs] = await Promise.all([listReviews(), listStudents(), listSubmissions()]);

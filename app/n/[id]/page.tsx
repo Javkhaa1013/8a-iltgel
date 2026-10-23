@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Nav from "@/components/Nav";
 import ViewCounter from "@/components/ViewCounter";
 import { currentStudent, isTeacher } from "@/lib/auth";
-import { findStage, getStages, getStudent, getSubmission, isPublic } from "@/lib/data";
+import { findStage, getStudent, getSubmission, isPublic, stagesForSubmission } from "@/lib/data";
 import { UUID_RE } from "@/lib/repo";
 import { formatUB } from "@/lib/stages";
 import { wordCount } from "@/lib/textTools";
@@ -13,7 +13,7 @@ type Props = { params: Promise<{ id: string }> };
 async function load(id: string) {
   if (!UUID_RE.test(id)) return null;
   const sub = await getSubmission(id);
-  if (!sub || !isPublic(sub, findStage(await getStages(), sub.stage_id))) return null;
+  if (!sub || !isPublic(sub, findStage(await stagesForSubmission(sub), sub.stage_id))) return null;
   return { sub, author: await getStudent(sub.student_id) };
 }
 

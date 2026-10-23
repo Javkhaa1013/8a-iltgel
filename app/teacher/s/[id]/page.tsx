@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Nav from "@/components/Nav";
 import SubmissionReview from "@/components/SubmissionReview";
 import ScorePanel from "@/components/teacher/ScorePanel";
-import { isTeacher } from "@/lib/auth";
+import { canAccessClass, currentTeacher } from "@/lib/auth";
 import { findStage, getDraft, getExtension, getStages, getStudent, getSubmission, listSubmissions } from "@/lib/data";
 import { UUID_RE } from "@/lib/repo";
 import { ASSIGNMENTS, formatUB, now, stageEnd } from "@/lib/stages";
@@ -15,11 +15,14 @@ import { average, rubricFor } from "@/lib/rubric";
 export const dynamic = "force-dynamic";
 
 export default async function TeacherSubmissionPage({ params }: { params: Promise<{ id: string }> }) {
-  if (!(await isTeacher())) redirect("/teacher");
+  const session = await currentTeacher();
+  if (!session) redirect("/teacher");
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const sub = await getSubmission(id);
-  const stages = await getStages();
+  const owner = sub ? await getStudent(sub.student_id) : null;
+  if (!owner || !canAccessClass(session, owner.class_id)) notFound();
+  const stages = await getStages(owner.class_id);
   const stage = sub && findStage(stages, sub.stage_id);
   if (!sub || !stage) notFound();
 

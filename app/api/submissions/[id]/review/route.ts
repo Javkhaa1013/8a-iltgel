@@ -1,5 +1,5 @@
 import { currentStudent } from "@/lib/auth";
-import { accessTo, findStage, getStages, getSubmission, listReviews } from "@/lib/data";
+import { accessTo, findStage, getSubmission, listReviews, stagesForSubmission } from "@/lib/data";
 import { fail, ok, readJson, str } from "@/lib/http";
 import { repo } from "@/lib/repo";
 import { cleanRatings } from "@/lib/rubric";
@@ -11,8 +11,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const me = await currentStudent();
   if (!me) return fail("Эхлээд кодоороо нэвтэрнэ үү", 401);
   const { id } = await params;
-  const [sub, stages] = await Promise.all([getSubmission(id), getStages()]);
+  const sub = await getSubmission(id);
   if (!sub) return fail("Бүтээл олдсонгүй", 404);
+  const stages = await stagesForSubmission(sub);
   const stage = findStage(stages, sub.stage_id);
   if (!stage) return fail("Үе шат олдсонгүй", 404);
 

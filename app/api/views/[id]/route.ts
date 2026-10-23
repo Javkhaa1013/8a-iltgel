@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { findStage, getStages, getSubmission, isPublic } from "@/lib/data";
+import { findStage, getSubmission, isPublic, stagesForSubmission } from "@/lib/data";
 import { fail, ok } from "@/lib/http";
 import { repo } from "@/lib/repo";
 
@@ -8,7 +8,7 @@ import { repo } from "@/lib/repo";
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const sub = await getSubmission(id);
-  if (!sub || !isPublic(sub, findStage(await getStages(), sub.stage_id))) return fail("Олдсонгүй", 404);
+  if (!sub || !isPublic(sub, findStage(await stagesForSubmission(sub), sub.stage_id))) return fail("Олдсонгүй", 404);
 
   const jar = await cookies();
   const seen = (jar.get("seen")?.value ?? "").split(",").filter(Boolean);

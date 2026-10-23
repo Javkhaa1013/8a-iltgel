@@ -1,11 +1,12 @@
-import { checkTeacherPassword, cookieOptions, isTeacher, TEACHER_COOKIE, TEACHER_MAX_AGE, teacherToken } from "@/lib/auth";
+import { cookieOptions, currentTeacher, findTeacherByPassword, TEACHER_COOKIE, TEACHER_MAX_AGE, teacherToken } from "@/lib/auth";
 import { fail, ok, readJson } from "@/lib/http";
 import { clearHits, clientIp, hit, hitCount } from "@/lib/rateLimit";
 
-// GET: багш нэвтэрсэн эсэх, POST: нэвтрэх, DELETE: гарах
+// GET: нэвтэрсэн эсэх, POST: нэвтрэх (админ эсвэл ангийн багш), DELETE: гарах
 
 export async function GET() {
-  return ok({ teacher: await isTeacher() });
+  const t = await currentTeacher();
+  return ok({ teacher: !!t, name: t?.name ?? null, isAdmin: t?.isAdmin ?? false });
 }
 
 export async function POST(req: Request) {
@@ -15,13 +16,14 @@ export async function POST(req: Request) {
   if (mine >= 8 || (all >= 50 && mine >= 2)) return fail("Олон удаа буруу оруулсан. 10 минутын дараа оролдоно уу", 429);
 
   const { password } = await readJson(req);
-  if (typeof password !== "string" || !checkTeacherPassword(password)) {
+  const session = typeof password === "string" ? await findTeacherByPassword(password) : null;
+  if (!session) {
     await Promise.all([hit(ipKey), hit("teacher:all")]);
     return fail("Нууц үг буруу байна", 403);
   }
   await clearHits(ipKey);
-  const res = ok({ teacher: true });
-  res.cookies.set(TEACHER_COOKIE, teacherToken(), { ...cookieOptions, maxAge: TEACHER_MAX_AGE });
+  const res = ok({ teacher: true, name: session.name, isAdmin: session.isAdmin });
+  res.cookies.set(TEACHER_COOKIE, teacherToken(session), { ...cookieOptions, maxAge: TEACHER_MAX_AGE });
   return res;
 }
 

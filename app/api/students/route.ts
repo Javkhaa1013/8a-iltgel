@@ -1,11 +1,13 @@
-import { generateCode, isTeacher } from "@/lib/auth";
+import { generateCode } from "@/lib/auth";
 import { listStudents } from "@/lib/data";
+import { teacherGuard } from "@/lib/guard";
 import { fail, ok, readJson } from "@/lib/http";
 import { repo } from "@/lib/repo";
 
 // Багш: ангийн нэрсийг (мөр бүрт нэг нэр) бөөнөөр нэмнэ. Хүүхэд бүрт давхцахгүй код үүснэ.
 export async function POST(req: Request) {
-  if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+  const guard = await teacherGuard();
+  if (!guard) return fail("Зөвхөн багш", 403);
   const { names } = await readJson(req);
   const list = String(names ?? "")
     .split("\n")
@@ -20,8 +22,8 @@ export async function POST(req: Request) {
     let code = generateCode();
     while (used.has(code)) code = generateCode();
     used.add(code);
-    return { name, login_code: code, attendance_score: null, bonus_score: null, bonus_note: "" };
+    return { class_id: guard.classId, name, login_code: code, attendance_score: null, bonus_score: null, bonus_note: "" };
   });
   await repo().insertMany("students", rows); // нэг хүсэлтээр: дунд нь алдаа гарвал хагас бичигдэхгүй
-  return ok(await listStudents(), 201);
+  return ok(await listStudents(guard.classId), 201);
 }

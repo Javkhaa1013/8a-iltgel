@@ -1,15 +1,18 @@
-import { isTeacher } from "@/lib/auth";
-import { findStage, getExtension, getStages, getStudent } from "@/lib/data";
+import { findStage, getExtension, getStages } from "@/lib/data";
+import { canTouchStudent, teacherGuard } from "@/lib/guard";
 import { fail, ok, readJson } from "@/lib/http";
 import { repo } from "@/lib/repo";
 
 // Багш: тодорхой сурагчид тухайн үе шатын хугацааг сунгах (өвчтэй г.м.) эсвэл сунгалтыг цуцлах
 export async function POST(req: Request) {
-  if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+  const guard = await teacherGuard();
+  if (!guard) return fail("Зөвхөн багш", 403);
   const body = await readJson(req);
   const studentId = String(body.student_id);
-  const stage = findStage(await getStages(), String(body.stage_id));
-  if (!stage || !(await getStudent(studentId))) return fail("Олдсонгүй", 404);
+  const student = await canTouchStudent(guard.session, studentId);
+  if (!student) return fail("Олдсонгүй", 404);
+  const stage = findStage(await getStages(student.class_id), String(body.stage_id));
+  if (!stage) return fail("Олдсонгүй", 404);
 
   const existing = await getExtension(studentId, stage.id);
   if (body.until === null) {

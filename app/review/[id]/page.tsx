@@ -20,7 +20,7 @@ export default async function PeerReviewPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const sub = await getSubmission(id);
-  const stage = sub && findStage(await getStages(), sub.stage_id);
+  const stage = sub && findStage(await getStages(me.class_id), sub.stage_id);
   if (!sub || !stage) notFound();
   if (sub.student_id === me.id) redirect(`/me/${stage.id}`);
 

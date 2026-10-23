@@ -1,7 +1,8 @@
-import { createHash, createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { listClasses, defaultClassId } from "./data";
 import { repo } from "./repo";
-import type { Student } from "./types";
+import type { Student, Teacher } from "./types";
 
 export const TEACHER_COOKIE = "teacher_session";
 export const STUDENT_COOKIE = "student_session";
@@ -47,16 +48,64 @@ export const cookieOptions = {
 };
 
 // ---- Багш ----
+// Админ: TEACHER_PASSWORD орчны хувьсагчаар нэвтэрнэ, бүх ангийг хардаг.
+// Ангийн багш: teachers хүснэгтэд нууц үг нь scrypt-ээр хэшлэгдэж хадгалагдана.
 
-export function checkTeacherPassword(password: string) {
-  const expected = process.env.TEACHER_PASSWORD;
-  return !!expected && safeEqual(password, expected);
-}
 export const TEACHER_MAX_AGE = 7 * 24 * 60 * 60;
-export const teacherToken = () => sign("teacher", TEACHER_MAX_AGE);
+export const CLASS_COOKIE = "active_class";
+
+export function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  return `${salt}:${scryptSync(password, salt, 32).toString("hex")}`;
+}
+
+export function verifyPassword(password: string, stored: string) {
+  const [salt, hash] = (stored ?? "").split(":");
+  if (!salt || !hash) return false;
+  const a = scryptSync(password, salt, 32);
+  const b = Buffer.from(hash, "hex");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export type TeacherSession = { id: string | null; name: string; classId: string | null; isAdmin: boolean };
+
+/** Нууц үгээр админ эсвэл ангийн багшийг олно */
+export async function findTeacherByPassword(password: string): Promise<TeacherSession | null> {
+  const admin = process.env.TEACHER_PASSWORD;
+  if (admin && safeEqual(password, admin)) return { id: null, name: "Админ багш", classId: null, isAdmin: true };
+  for (const t of await repo().select<Teacher>("teachers")) {
+    if (verifyPassword(password, t.password_hash)) return { id: t.id, name: t.name, classId: t.class_id ?? null, isAdmin: false };
+  }
+  return null;
+}
+
+export const teacherToken = (session: TeacherSession) => sign(session.isAdmin ? "admin" : `teacher:${session.id}`, TEACHER_MAX_AGE);
+
+/** Нэвтэрсэн багш (админ эсвэл ангийн багш) */
+export async function currentTeacher(): Promise<TeacherSession | null> {
+  const payload = verify((await cookies()).get(TEACHER_COOKIE)?.value);
+  if (!payload) return null;
+  if (payload === "admin") return { id: null, name: "Админ багш", classId: null, isAdmin: true };
+  if (!payload.startsWith("teacher:")) return null;
+  const [t] = await repo().select<Teacher>("teachers", { id: payload.slice(8) });
+  return t ? { id: t.id, name: t.name, classId: t.class_id ?? null, isAdmin: false } : null;
+}
 
 export async function isTeacher() {
-  return verify((await cookies()).get(TEACHER_COOKIE)?.value) === "teacher";
+  return (await currentTeacher()) !== null;
+}
+
+/** Багшийн ажиллаж буй анги. Админ анги сольж болно (cookie-д хадгална). */
+export async function activeClassId(session: TeacherSession): Promise<string> {
+  if (!session.isAdmin && session.classId) return session.classId;
+  const chosen = (await cookies()).get(CLASS_COOKIE)?.value;
+  const classes = await listClasses();
+  return classes.find((c) => c.id === chosen)?.id ?? (await defaultClassId());
+}
+
+/** Багш тухайн ангид хандах эрхтэй эсэх */
+export function canAccessClass(session: TeacherSession, classId: string) {
+  return session.isAdmin || session.classId === classId;
 }
 
 // ---- Сурагч ----

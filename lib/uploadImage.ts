@@ -4,7 +4,10 @@
  * Утаснаас авсан том зургийг браузер дээр нь жижигрүүлж (WebP) серверт илгээнэ.
  * Ингэснээр Supabase-ийн үнэгүй зай хурдан дүүрэхгүй, слайд хурдан ачаална.
  */
-export async function uploadImage(file: File, maxSide = 1920): Promise<string> {
+/** Нэг зургийн зорилтот хэмжээ. Гар бичмэл уншигдахад хангалттай, зай 3 дахин хэмнэнэ. */
+const TARGET_BYTES = 300 * 1024;
+
+export async function uploadImage(file: File, maxSide = 1600): Promise<string> {
   // iPhone-ийн HEIC зураг зарим браузерт төрөлгүй (type="") ирдэг
   const heic = /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/.test(file.type);
   if (!file.type.startsWith("image/") && !heic) throw new Error("Зөвхөн зураг оруулна");
@@ -21,9 +24,16 @@ export async function uploadImage(file: File, maxSide = 1920): Promise<string> {
       canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close();
       const encode = (type: string, q: number) => new Promise<Blob | null>((r) => canvas.toBlob(r, type, q));
+
       // Хуучин Safari WebP үүсгэж чаддаггүй (PNG буцаадаг) — тэр үед JPEG болгоно
-      let out = await encode("image/webp", 0.82);
-      if (!out || out.type !== "image/webp") out = await encode("image/jpeg", 0.85);
+      let out = await encode("image/webp", 0.72);
+      const type = out?.type === "image/webp" ? "image/webp" : "image/jpeg";
+      if (type === "image/jpeg") out = await encode(type, 0.72);
+      // Том хэвээр бол чанарыг аажмаар бууруулна (гар бичмэл 0.45-д ч уншигдана)
+      for (const q of [0.6, 0.5, 0.45]) {
+        if (!out || out.size <= TARGET_BYTES) break;
+        out = await encode(type, q);
+      }
       if (out && (out.size < file.size || heic)) blob = out;
     } catch {
       if (heic) throw new Error("iPhone-ийн HEIC зургийг уншиж чадсангүй. Камераар шууд авах товчийг ашиглана уу.");

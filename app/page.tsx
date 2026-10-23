@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Nav from "@/components/Nav";
 import { currentStudent, isTeacher } from "@/lib/auth";
-import { getStages, isPublic, listStudents, listSubmissions } from "@/lib/data";
+import { getStages, isPublic, listClasses, listStudents, listSubmissions } from "@/lib/data";
 import { formatUB } from "@/lib/stages";
 import { wordCount } from "@/lib/textTools";
 import { publicName } from "@/lib/names";
@@ -9,17 +9,23 @@ import { publicName } from "@/lib/names";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [teacher, student, stages, students, subs] = await Promise.all([
+  const [teacher, student, classes, students, subs] = await Promise.all([
     isTeacher(),
     currentStudent(),
-    getStages(),
+    listClasses(),
     listStudents(),
     listSubmissions({ published: true }),
   ]);
   const names = new Map(students.map((s) => [s.id, s.name]));
+  const classOf = new Map(students.map((s) => [s.id, s.class_id]));
+  // Анги бүр өөрийн хуваартай тул тухайн сурагчийн ангийн хуваариар шалгана
+  const stagesByClass = new Map(await Promise.all(classes.map(async (c) => [c.id, await getStages(c.id)] as const)));
   // Зөвхөн багш зөвшөөрсөн, хугацаа нь дууссан эцсийн бүтээлүүд
   const articles = subs
-    .filter((s) => isPublic(s, stages.find((st) => st.id === s.stage_id)))
+    .filter((s) => {
+      const stages = stagesByClass.get(classOf.get(s.student_id) ?? "") ?? [];
+      return isPublic(s, stages.find((st) => st.id === s.stage_id));
+    })
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
   return (

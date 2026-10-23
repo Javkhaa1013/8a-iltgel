@@ -1,5 +1,21 @@
+export type Class = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+/** Ангийн багш. class_id байхгүй бол бүх ангийг хариуцна (админ). */
+export type Teacher = {
+  id: string;
+  name: string;
+  class_id: string | null;
+  password_hash: string;
+  created_at: string;
+};
+
 export type Student = {
   id: string;
+  class_id: string;
   name: string;
   login_code: string;
   attendance_score: number | null;

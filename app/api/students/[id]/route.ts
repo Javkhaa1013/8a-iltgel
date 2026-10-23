@@ -1,5 +1,6 @@
-import { CODE_ALPHABET, generateCode, isTeacher, normalizeCode } from "@/lib/auth";
-import { getStudent, listStudents } from "@/lib/data";
+import { CODE_ALPHABET, generateCode, normalizeCode } from "@/lib/auth";
+import { listStudents } from "@/lib/data";
+import { canTouchStudent, teacherGuard } from "@/lib/guard";
 import { fail, ok, readJson, score, str } from "@/lib/http";
 import { repo } from "@/lib/repo";
 import { ATTENDANCE_MAX } from "@/lib/stages";
@@ -8,9 +9,10 @@ type Ctx = { params: Promise<{ id: string }> };
 
 // Багш: нэр, ирц/идэвхийн оноо, нэмэлт оноо засах, код шинэчлэх
 export async function PATCH(req: Request, { params }: Ctx) {
-  if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+  const guard = await teacherGuard();
+  if (!guard) return fail("Зөвхөн багш", 403);
   const { id } = await params;
-  if (!(await getStudent(id))) return fail("Сурагч олдсонгүй", 404);
+  if (!(await canTouchStudent(guard.session, id))) return fail("Сурагч олдсонгүй", 404);
 
   const body = await readJson(req);
   const patch: Record<string, unknown> = {};
@@ -52,8 +54,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
 }
 
 export async function DELETE(_req: Request, { params }: Ctx) {
-  if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+  const guard = await teacherGuard();
+  if (!guard) return fail("Зөвхөн багш", 403);
   const { id } = await params;
+  if (!(await canTouchStudent(guard.session, id))) return fail("Сурагч олдсонгүй", 404);
   // Бүтээл, сэтгэгдэл, сунгалтыг хамт устгана (локал JSON-д cascade байхгүй тул гараар)
   const subs = await repo().select<{ id: string }>("submissions", { student_id: id });
   for (const s of subs) {

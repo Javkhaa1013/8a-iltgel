@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Stage } from "@/lib/stages";
-import type { Extension, Student } from "@/lib/types";
+import type { Class, Extension, Student } from "@/lib/types";
+import ClassAdmin from "./ClassAdmin";
 import DeadlineAlerts from "./DeadlineAlerts";
 import Gradebook from "./Gradebook";
 import Integrity from "./Integrity";
@@ -53,6 +55,11 @@ export type TeacherData = {
   drafts: { id: string; student_id: string; stage_id: string; updated_at: string }[];
   peer: PeerStage[];
   flags: { a: string; b: string; percent: number }[];
+  classes: Class[];
+  activeClass: string;
+  teacherName: string;
+  isAdmin: boolean;
+  teachers: { id: string; name: string; class_id: string | null }[];
 };
 
 const TABS = [
@@ -62,9 +69,11 @@ const TABS = [
   { id: "integrity", label: "🔍 Хуулбар шалгах" },
   { id: "roster", label: "👥 Сурагчид ба код" },
   { id: "schedule", label: "🗓 Хуваарь" },
+  { id: "classes", label: "🏫 Анги, багш" },
 ] as const;
 
 export default function TeacherHome(data: TeacherData) {
+  const router = useRouter();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>(data.students.length ? "grades" : "roster");
 
   // Нээлттэй хөндлөнгийн үнэлгээнд үнэлээгүй хүүхдийн тоо
@@ -74,7 +83,30 @@ export default function TeacherHome(data: TeacherData) {
 
   return (
     <div className="mx-auto max-w-[1400px] px-4">
-      <h1 className="font-display text-2xl font-bold">👩‍🏫 Багшийн самбар</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-2xl font-bold">👩‍🏫 Багшийн самбар</h1>
+        <span className="rounded-xl bg-violet-100 px-3 py-1.5 font-bold text-violet-800">
+          🏫 {data.classes.find((c) => c.id === data.activeClass)?.name ?? "—"}
+        </span>
+        <span className="text-sm text-slate-500">{data.teacherName}</span>
+        {data.isAdmin && data.classes.length > 1 && (
+          <select
+            value={data.activeClass}
+            onChange={async (e) => {
+              await fetch("/api/classes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: e.target.value, activate: true }) });
+              router.refresh();
+            }}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold"
+            title="Ажиллах ангиа сонгох"
+          >
+            {data.classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ангид ажиллах
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       {data.students.length > 0 && <DeadlineAlerts {...data} onOpenPeer={() => setTab("peer")} />}
       <div className="mt-4 flex flex-wrap gap-2">
         {TABS.map((t) => (
@@ -96,6 +128,14 @@ export default function TeacherHome(data: TeacherData) {
         {tab === "integrity" && <Integrity {...data} />}
         {tab === "roster" && <Roster students={data.students} />}
         {tab === "schedule" && <Schedule {...data} />}
+        {tab === "classes" &&
+          (data.isAdmin ? (
+            <ClassAdmin classes={data.classes} teachers={data.teachers} activeClass={data.activeClass} />
+          ) : (
+            <p className="rounded-2xl bg-white p-8 text-center text-slate-500">
+              Анги, багш нарыг зөвхөн админ багш удирдана. Та {data.classes.find((c) => c.id === data.activeClass)?.name} ангийн багш байна.
+            </p>
+          ))}
       </div>
     </div>
   );

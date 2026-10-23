@@ -17,7 +17,7 @@ export default async function StagePage({ params }: { params: Promise<{ stageId:
   const me = await currentStudent();
   if (!me) redirect("/login");
   const { stageId } = await params;
-  const stages = await getStages();
+  const stages = await getStages(me.class_id);
   const stage = findStage(stages, stageId);
   if (!stage) notFound();
 

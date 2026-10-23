@@ -8,6 +8,8 @@ import { ensureSchema } from "./schema";
 // Шүүлт нь зөвхөн "багана = утга" хэлбэрийнх.
 
 export type Table =
+  | "classes"
+  | "teachers"
   | "students"
   | "submissions"
   | "submission_versions"

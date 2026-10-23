@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   if (!me) return fail("Эхлээд кодоороо нэвтэрнэ үү", 401);
 
   const body = await readJson(req);
-  const stage = findStage(await getStages(), String(body.stage_id));
+  const stage = findStage(await getStages(me.class_id), String(body.stage_id));
   if (!stage) return fail("Үе шат олдсонгүй", 404);
 
   const ext = await getExtension(me.id, stage.id);

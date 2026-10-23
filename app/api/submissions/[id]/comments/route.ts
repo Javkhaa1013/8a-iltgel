@@ -1,13 +1,14 @@
 import { currentStudent, isTeacher } from "@/lib/auth";
-import { accessTo, findStage, getStages, getSubmission, listVersions } from "@/lib/data";
+import { accessTo, findStage, getSubmission, listVersions, stagesForSubmission } from "@/lib/data";
 import { fail, ok, readJson, str } from "@/lib/http";
 import { repo } from "@/lib/repo";
 
 // Сэтгэгдэл нэмэх: текстийн хэсэг сонгосон (start/end) эсвэл ерөнхий
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [teacher, student, sub, stages] = await Promise.all([isTeacher(), currentStudent(), getSubmission(id), getStages()]);
+  const [teacher, student, sub] = await Promise.all([isTeacher(), currentStudent(), getSubmission(id)]);
   if (!sub) return fail("Бүтээл олдсонгүй", 404);
+  const stages = await stagesForSubmission(sub);
   const stage = findStage(stages, sub.stage_id);
   if (!stage) return fail("Үе шат олдсонгүй", 404);
 

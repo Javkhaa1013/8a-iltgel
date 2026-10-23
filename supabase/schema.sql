@@ -100,11 +100,35 @@ create table if not exists public.rate_limits (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.classes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.teachers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  class_id uuid references public.classes(id) on delete cascade,
+  password_hash text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.students add column if not exists class_id uuid references public.classes(id) on delete cascade;
+
+-- Анхны анги үүсгэж, ангигүй сурагчдыг түүнд хамруулна (нэг удаагийн шилжилт)
+insert into public.classes (name) select '8А' where not exists (select 1 from public.classes);
+update public.students set class_id = (select id from public.classes order by created_at limit 1) where class_id is null;
+
+create index if not exists students_class_idx on public.students (class_id);
+
 create index if not exists reviews_submission_idx on public.reviews (submission_id);
 create index if not exists versions_submission_idx on public.submission_versions (submission_id);
 create index if not exists submissions_student_idx on public.submissions (student_id);
 create index if not exists comments_submission_idx on public.comments (submission_id);
 
+alter table public.classes enable row level security;
+alter table public.teachers enable row level security;
 alter table public.students enable row level security;
 alter table public.submissions enable row level security;
 alter table public.comments enable row level security;

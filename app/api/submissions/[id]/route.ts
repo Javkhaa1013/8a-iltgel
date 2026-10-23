@@ -1,5 +1,5 @@
-import { isTeacher } from "@/lib/auth";
-import { findStage, getStages, getSubmission } from "@/lib/data";
+import { findStage, getStages, getStudent, getSubmission } from "@/lib/data";
+import { canTouchStudent, teacherGuard } from "@/lib/guard";
 import { fail, ok, readJson, score } from "@/lib/http";
 import { isAuthorDisplay } from "@/lib/names";
 import { repo } from "@/lib/repo";
@@ -7,11 +7,14 @@ import { now, stageEnd } from "@/lib/stages";
 
 // Багш: оноо өгөх, эцсийн бүтээлийг нийтлэх/нуух
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isTeacher())) return fail("Зөвхөн багш", 403);
+  const guard = await teacherGuard();
+  if (!guard) return fail("Зөвхөн багш", 403);
   const { id } = await params;
   const sub = await getSubmission(id);
   if (!sub) return fail("Бүтээл олдсонгүй", 404);
-  const stage = findStage(await getStages(), sub.stage_id);
+  const owner = await canTouchStudent(guard.session, sub.student_id);
+  if (!owner) return fail("Энэ бүтээл өөр ангийнх", 403);
+  const stage = findStage(await getStages(owner.class_id), sub.stage_id);
   if (!stage) return fail("Үе шат олдсонгүй", 404);
 
   const body = await readJson(req);

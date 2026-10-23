@@ -14,7 +14,7 @@ export default async function MePage() {
   if (!me) redirect("/login");
 
   const [stages, mySubs, exts, students, allSubs] = await Promise.all([
-    getStages(),
+    getStages(me.class_id),
     listSubmissions({ student_id: me.id }),
     listExtensions({ student_id: me.id }),
     listStudents(),

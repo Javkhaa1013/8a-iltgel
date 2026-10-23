@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import AcceptDraftButton from "@/components/teacher/AcceptDraftButton";
 import ExtensionControl from "@/components/teacher/ExtensionControl";
 import ParentLink from "@/components/teacher/ParentLink";
-import { isTeacher, reportToken } from "@/lib/auth";
+import { canAccessClass, currentTeacher, reportToken } from "@/lib/auth";
 import { getStages, getStudent, listDrafts, listExtensions, listSubmissions, studentTotals } from "@/lib/data";
 import { UUID_RE } from "@/lib/repo";
 import { ASSIGNMENTS, ATTENDANCE_MAX, formatUB, now, rangeLabel, windowState } from "@/lib/stages";
@@ -12,13 +12,14 @@ import { ASSIGNMENTS, ATTENDANCE_MAX, formatUB, now, rangeLabel, windowState } f
 export const dynamic = "force-dynamic";
 
 export default async function TeacherStudentPage({ params }: { params: Promise<{ id: string }> }) {
-  if (!(await isTeacher())) redirect("/teacher");
+  const session = await currentTeacher();
+  if (!session) redirect("/teacher");
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const student = await getStudent(id);
-  if (!student) notFound();
+  if (!student || !canAccessClass(session, student.class_id)) notFound();
   const [stages, subs, exts, drafts] = await Promise.all([
-    getStages(),
+    getStages(student.class_id),
     listSubmissions({ student_id: id }),
     listExtensions({ student_id: id }),
     listDrafts({ student_id: id }),
