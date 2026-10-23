@@ -109,7 +109,8 @@ export default function TeacherHome(data: TeacherData) {
       </div>
       {data.students.length > 0 && <DeadlineAlerts {...data} onOpenPeer={() => setTab("peer")} />}
       <div className="mt-4 flex flex-wrap gap-2">
-        {TABS.map((t) => (
+        {/* Анги, багшийг зөвхөн админ удирдана — ангийн багшид тэр таб гарахгүй */}
+        {TABS.filter((t) => t.id !== "classes" || data.isAdmin).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
