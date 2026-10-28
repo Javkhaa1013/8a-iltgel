@@ -5,7 +5,7 @@ import { currentTeacher } from "@/lib/auth";
 import { activeClassId } from "@/lib/auth";
 import { listTeachers } from "@/lib/data";
 import { getClass, getStages, listClasses, listDrafts, listExtensions, listReviews, listStudents, listSubmissions, peerTargets, studentTotals } from "@/lib/data";
-import { now, peerReviewEnd, stageEnd } from "@/lib/stages";
+import { isLate, now, peerReviewEnd, stageEnd } from "@/lib/stages";
 import { overlap, wordCount } from "@/lib/textTools";
 
 export const dynamic = "force-dynamic";
@@ -89,7 +89,11 @@ export default async function TeacherPage() {
           images: s.images.length,
           paste_chars: s.paste_chars,
           body_chars: s.body.length,
-          late: s.late,
+          late: isLate(
+            s,
+            stages.find((st) => st.id === s.stage_id),
+            extensions.find((e) => e.student_id === s.student_id && e.stage_id === s.stage_id)?.until
+          ),
           teacher_score: s.teacher_score,
           published: s.published,
           author_display: s.author_display,

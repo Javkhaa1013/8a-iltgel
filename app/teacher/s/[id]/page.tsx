@@ -6,7 +6,7 @@ import ScorePanel from "@/components/teacher/ScorePanel";
 import { canAccessClass, currentTeacher } from "@/lib/auth";
 import { findStage, getDraft, getExtension, getStages, getStudent, getSubmission, listSubmissions } from "@/lib/data";
 import { UUID_RE } from "@/lib/repo";
-import { ASSIGNMENTS, formatUB, now, stageEnd } from "@/lib/stages";
+import { ASSIGNMENTS, formatUB, isLate, now, stageEnd } from "@/lib/stages";
 import { overlap, wordCount } from "@/lib/textTools";
 import { commentViews, reviewViews, versionViews } from "@/lib/views";
 import ReviewList from "@/components/ReviewList";
@@ -38,6 +38,7 @@ export default async function TeacherSubmissionPage({ params }: { params: Promis
   const assignment = ASSIGNMENTS.find((a) => a.id === stage.assignment)!;
   const deadline = ext && new Date(ext.until) > stageEnd(stage) ? new Date(ext.until) : stageEnd(stage);
   const late = new Date(sub.updated_at) > stageEnd(stage);
+  const lateSub = isLate(sub, stage, ext?.until); // хоцорч нөхсөн эсвэл анхны хугацаанаас хойш илгээсэн
 
   const reviews = await reviewViews(sub.id, "teacher", null, stage.max);
   const scoresOf = (role: "self" | "peer") => reviews.filter((r) => r.role === role && r.score !== null).map((r) => r.score!);
@@ -67,7 +68,7 @@ export default async function TeacherSubmissionPage({ params }: { params: Promis
           <Link href={`/teacher/student/${sub.student_id}`} className="rounded-lg bg-violet-100 px-2 py-1 font-semibold text-violet-800 hover:underline">
             {student?.name}
           </Link>
-          {sub.late && (
+          {lateSub && (
             <span className="rounded-lg bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900" title="Хугацаа дууссаны дараа нөхөж илгээсэн">
               ⏰ Хоцорч нөхсөн
             </span>
@@ -97,7 +98,7 @@ export default async function TeacherSubmissionPage({ params }: { params: Promis
           <Info
             label="Сүүлд илгээсэн"
             value={`${formatUB(sub.updated_at)} · ${Math.max(1, versions.length)} удаа`}
-            warn={sub.late ? "⏰ хоцорч нөхсөн" : late ? "сунгалтаар" : undefined}
+            warn={lateSub ? "⏰ хоцорч нөхсөн" : late ? "сунгалтаар" : undefined}
           />
           <Info label="Хугацаа" value={`${formatUB(deadline)}${now() > deadline ? " (дууссан)" : ""}`} />
           <Info

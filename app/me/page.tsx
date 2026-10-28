@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import StudentGuide from "@/components/StudentGuide";
 import { currentStudent } from "@/lib/auth";
 import { getStages, listComments, listExtensions, listReviews, listStudents, listSubmissions, peerReviewOpen, peerTargets } from "@/lib/data";
-import { ASSIGNMENTS, assignmentMax, catchupOpen, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
+import { ASSIGNMENTS, assignmentMax, catchupOpen, countsLate, formatUB, isLate, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Миний даалгаврууд · 8А" };
@@ -93,11 +93,15 @@ export default async function MePage() {
                   const deadline = ext && new Date(ext.until) > stageEnd(st) ? new Date(ext.until) : stageEnd(st);
                   // Багш нөхөлт нээсэн бол хоцорсон сурагч хугацаа дууссан ч оруулж болно
                   const catchup = catchupOpen(st, state, sub);
+                  const lateNow = countsLate(st, at); // хугацаа хойшилсон — одоо оруулбал хоцорсон
                   const badge =
                     state === "upcoming"
                       ? { cls: "bg-slate-100 text-slate-600", text: `🔒 ${formatUB(stageStart(st), false)}-нд нээгдэнэ` }
                       : state === "open"
-                        ? { cls: "bg-violet-100 text-violet-800", text: `⏳ ${timeLeft(deadline, at)} үлдсэн` }
+                        ? {
+                            cls: lateNow ? "bg-amber-100 text-amber-900" : "bg-violet-100 text-violet-800",
+                            text: lateNow ? `⏰ Хоцорсон — ${timeLeft(deadline, at)} үлдсэн` : `⏳ ${timeLeft(deadline, at)} үлдсэн`,
+                          }
                         : catchup
                           ? { cls: "bg-amber-100 text-amber-900", text: "⏰ Нөхөж оруулах нээлттэй" }
                           : { cls: "bg-slate-800 text-white", text: "⛔ Хугацаа дууссан" };
@@ -111,10 +115,13 @@ export default async function MePage() {
                       <div className="text-sm text-slate-500">{st.kind === "image" ? "📷 Гараар бичсэн ноорогийн зураг" : "⌨️ Текстээр"}</div>
                       <span className={`mt-3 w-fit rounded-full px-2.5 py-1 text-xs font-bold ${badge.cls}`}>{badge.text}</span>
                       {ext && <span className="mt-1 text-xs font-semibold text-amber-700">Багш {formatUB(ext.until)} хүртэл сунгасан</span>}
+                      {lateNow && !sub && (
+                        <span className="mt-1 text-xs font-semibold text-amber-700">Хугацаа нь {formatUB(st.lateAfter!)}-д дуусчихсан — одоо оруулбал хоцорсон гэж тэмдэглэгдэнэ</span>
+                      )}
                       <div className="mt-3 flex-1 text-sm">
                         {sub ? (
                           <>
-                            {sub.late ? (
+                            {isLate(sub, st, ext?.until) ? (
                               <div className="text-amber-700">⏰ Хоцорч нөхсөн: {formatUB(sub.updated_at)}</div>
                             ) : (
                               <div className="text-emerald-700">✅ Илгээсэн: {formatUB(sub.updated_at)}</div>

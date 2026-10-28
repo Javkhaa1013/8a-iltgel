@@ -2,7 +2,7 @@ import { currentStudent } from "@/lib/auth";
 import { readContent } from "@/lib/content";
 import { findStage, getExtension, getStages, listSubmissions, saveSubmission } from "@/lib/data";
 import { fail, ok, readJson } from "@/lib/http";
-import { catchupOpen, formatUB, rangeLabel, stageEnd, windowState } from "@/lib/stages";
+import { catchupOpen, countsLate, formatUB, now, rangeLabel, stageEnd, windowState } from "@/lib/stages";
 
 // Сурагч бүтээлээ илгээнэ / дахин илгээнэ (илгээх бүр хувилбар болж хадгалагдана).
 // Хугацааг СЕРВЕР дээр шалгана.
@@ -20,9 +20,13 @@ export async function POST(req: Request) {
   ]);
   const state = windowState(stage, ext?.until);
   if (state === "upcoming") return fail(`Энэ даалгавар ${rangeLabel(stage)}-нд нээгдэнэ`, 403);
-  // Хугацаа дууссан: багш нөхөлт нээсэн бол зөвхөн илгээгээгүй сурагч нөхөж оруулна
-  const late = catchupOpen(stage, state, existing);
-  if (state === "closed" && !late) {
+  // Хугацаа дууссан: багш нөхөлт нээсэн бол зөвхөн илгээгээгүй сурагч нөхөж оруулна.
+  // Багш хугацааг хойшлуулсан бол анхны хугацаанаас хойш орсон нь мөн хоцорсонд тооцогдоно.
+  const catchupLate = catchupOpen(stage, state, existing);
+  // Багшийн сунгалт дотор илгээж байгаа бол хоцорсонд тооцохгүй
+  const withinExtension = !!ext && new Date(ext.until) >= now();
+  const late = catchupLate || (countsLate(stage) && !withinExtension);
+  if (state === "closed" && !catchupLate) {
     const when = formatUB(ext ? new Date(ext.until) : stageEnd(stage));
     return fail(
       existing && stage.catchup

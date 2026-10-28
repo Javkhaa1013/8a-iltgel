@@ -13,6 +13,8 @@ type Props = {
   deadline: string;
   /** Хугацаа дууссан ч багш нөхөлт нээсэн — илгээх боломжтой, ажил "хоцорсон" гэж тэмдэглэгдэнэ */
   catchup?: boolean;
+  /** Багш хугацааг хойшлуулсан — цаг үлдсэн ч оруулсан ажил "хоцорсон" гэж тэмдэглэгдэнэ */
+  lateNow?: boolean;
   serverNow: string;
   existing: Content | null; // сүүлд илгээсэн
   serverDraft: Content | null; // серверт автоматаар хадгалагдсан, илгээгээгүй ноорог
@@ -45,11 +47,12 @@ function fmt(ms: number) {
 const same = (a: { title: string; body: string; images: string[] }, b: { title: string; body: string; images: string[] } | null) =>
   !!b && a.title === b.title && a.body === b.body && a.images.join("|") === b.images.join("|");
 
-export default function StageEditor({ stage, deadline, catchup = false, serverNow, existing, serverDraft, previous }: Props) {
+export default function StageEditor({ stage, deadline, catchup = false, lateNow = false, serverNow, existing, serverDraft, previous }: Props) {
   const router = useRouter();
   const localKey = `nootlog-${stage.id}`;
   const left = useCountdown(deadline, serverNow);
   const closed = left <= 0 && !catchup;
+  const markedLate = catchup || lateNow; // илгээвэл "хоцорсон" гэж тэмдэглэгдэнэ
 
   // Илгээх үед ноорог устдаг тул ноорог байгаа бол илгээснээс хойш хийсэн өөрчлөлт гэсэн үг
   const draftIsNewer = !!serverDraft && !same(serverDraft, existing);
@@ -171,7 +174,7 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
     } catch {}
     setMsg({
       ok: true,
-      text: catchup
+      text: markedLate
         ? "✅ Илгээлээ! Хугацаа дууссаны дараа оруулсан тул багшид \"⏰ хоцорсон\" гэж харагдана."
         : "✅ Амжилттай илгээлээ! Хугацаа дуусахаас өмнө дахин засаж болно.",
     });
@@ -180,7 +183,7 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
 
   const words = body.trim() ? body.trim().split(/\s+/).length : 0;
   const urgent = left < 24 * 3600_000;
-  const timerCls = catchup
+  const timerCls = markedLate
     ? "bg-amber-500 text-white"
     : closed
       ? "bg-slate-900 text-white"
@@ -201,7 +204,7 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
     <>
       {/* Утсан дээр хугацаа үргэлж харагдана */}
       <div className={`sticky top-0 z-30 -mx-4 mt-3 flex items-center justify-between px-4 py-2 text-sm font-bold lg:hidden ${timerCls}`}>
-        <span>{catchup ? "⏰ Хоцорч нөхөж байна" : `⏳ ${fmt(left)}`}</span>
+        <span>{catchup ? "⏰ Хоцорч нөхөж байна" : `${markedLate ? "⏰" : "⏳"} ${fmt(left)}`}</span>
         {unsent && !closed && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">Илгээгээгүй</span>}
       </div>
 
@@ -317,7 +320,7 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
                 ? "Илгээж байна…"
                 : !unsent
                   ? "✅ Илгээсэн (өөрчлөлтгүй)"
-                  : catchup
+                  : markedLate
                     ? existing
                       ? "💾 Хоцорсон ажлаа шинэчлэх"
                       : "⏰ Хоцорч илгээх"
@@ -340,6 +343,7 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
               <>
                 <div className="text-xs font-bold uppercase tracking-wider opacity-80">Хугацаа дуусахад</div>
                 <div className="mt-1 font-display text-xl font-bold">{fmt(left)}</div>
+                {lateNow && <div className="mt-1 text-xs opacity-90">⏰ Анхны хугацаа дууссан тул оруулсан ажил &quot;хоцорсон&quot; гэж тэмдэглэгдэнэ.</div>}
               </>
             )}
           </div>
@@ -376,7 +380,9 @@ export default function StageEditor({ stage, deadline, catchup = false, serverNo
               <li>
                 {catchup
                   ? "Багш нөхөлтийг хаахад оруулах боломж дуусна — хойшлуулалгүй илгээчихээрэй."
-                  : "Хугацаа дууссаны дараа засах, оруулах боломжгүй."}
+                  : lateNow
+                    ? "Анхны хугацаа нь дууссан тул одоо оруулсан ажил хоцорсон гэж тэмдэглэгдэнэ."
+                    : "Хугацаа дууссаны дараа засах, оруулах боломжгүй."}
               </li>
               <li>Илгээх бүр хувилбар болж хадгалагдана — багш таны засварын явцыг харна.</li>
               <li>Өөрийн үгээр бичээрэй — бусдын текстийг хуулсан эсэхийг систем шалгадаг.</li>

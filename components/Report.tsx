@@ -17,7 +17,7 @@ import {
 } from "@/lib/data";
 import { average, ratingsToScore } from "@/lib/rubric";
 import { UUID_RE } from "@/lib/repo";
-import { ASSIGNMENTS, ATTENDANCE_MAX, formatUB, now, rangeLabel, stageEnd } from "@/lib/stages";
+import { ASSIGNMENTS, ATTENDANCE_MAX, formatUB, isLate, now, rangeLabel, stageEnd } from "@/lib/stages";
 import { diffStats, wordCount, wordDiff } from "@/lib/textTools";
 import type { Comment, Version } from "@/lib/types";
 
@@ -112,6 +112,7 @@ export default async function Report({ id, forParent = false }: { id: string; fo
                     const ext = exts.find((e) => e.stage_id === st.id);
                     // sub.late — хугацаа дууссаны дараа нөхөж оруулсан; бусад тохиолдолд сунгалтаар
                     const afterEnd = sub && new Date(sub.updated_at) > stageEnd(st);
+                    const lateSub = sub && isLate(sub, st, ext?.until);
                     return (
                       <tr key={st.id}>
                         <td className="border border-slate-200 p-2 pl-6">{st.label}</td>
@@ -120,7 +121,7 @@ export default async function Report({ id, forParent = false }: { id: string; fo
                           {sub ? (
                             <>
                               {formatUB(sub.updated_at)}
-                              {sub.late ? (
+                              {lateSub ? (
                                 <span className="ml-1 font-semibold text-amber-700">⏰ хоцорч нөхсөн</span>
                               ) : afterEnd ? (
                                 <span className="ml-1 text-amber-700">(сунгалтаар)</span>

@@ -24,6 +24,11 @@ export type Stage = {
   max: number;
   final?: boolean; // нийтэд нийтлэх боломжтой эцсийн бүтээл
   catchup?: boolean; // хугацаа дууссаны дараа илгээгээгүй сурагчид нөхөж оруулж болно (хоцорсон гэж тэмдэглэгдэнэ)
+  /**
+   * Анхны хугацаа (ISO). Багш хугацаа нь дуусчихсан шатыг хойшлуулахад автоматаар бичигдэнэ —
+   * үүнээс хойш илгээсэн бүтээл "хоцорсон" гэж тэмдэглэгдэнэ. Багш цуцалж болно.
+   */
+  lateAfter?: string;
 };
 
 export const DEFAULT_STAGES: Stage[] = [
@@ -68,6 +73,20 @@ export function windowState(s: Stage, extensionUntil?: string | null, at = now()
  * Багш тухайн шатны "нөхөлт"-ийг нээсэн байх шаардлагатай, бөгөөд зөвхөн хугацаандаа
  * илгээгээгүй (эсвэл хоцорч нөхсөн) сурагч л оруулна — хугацаандаа илгээсэн ажил түгжээтэй хэвээр.
  */
+/** Яг одоо илгээвэл хоцорсонд тооцогдох эсэх (багш хугацааг хойшлуулсан тохиолдолд) */
+export const countsLate = (s: Stage, at = now()) => !!s.lateAfter && at > new Date(s.lateAfter);
+
+/**
+ * Илгээсэн бүтээл хоцорсон эсэх: хадгалсан тэмдэг, эсвэл анхны хугацаанаас хойш илгээсэн.
+ * Багшийн тухайн сурагчид өгсөн сунгалт дотор илгээсэн бол хоцорсонд тооцохгүй.
+ */
+export function isLate(sub: { late?: boolean; submitted_at: string }, stage: Stage | undefined, extensionUntil?: string | null) {
+  if (sub.late === true) return true;
+  if (!stage?.lateAfter) return false;
+  const limit = Math.max(new Date(stage.lateAfter).getTime(), extensionUntil ? new Date(extensionUntil).getTime() : 0);
+  return new Date(sub.submitted_at).getTime() > limit;
+}
+
 export function catchupOpen(s: Stage, state: WindowState, existing: { late?: boolean } | null | undefined) {
   return state === "closed" && s.catchup === true && (!existing || existing.late === true);
 }
@@ -75,7 +94,7 @@ export function catchupOpen(s: Stage, state: WindowState, existing: { late?: boo
 const MONTHS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
 /** "X/5-9" хэлбэр (хүснэгттэй ижил) */
-export function rangeLabel(s: Stage) {
+export function rangeLabel(s: Pick<Stage, "start" | "end" | "endTime">) {
   const [, m1, d1] = s.start.split("-").map(Number);
   const [, m2, d2] = s.end.split("-").map(Number);
   const range = m1 === m2 ? `${MONTHS[m1 - 1]}/${d1}-${d2}` : `${MONTHS[m1 - 1]}/${d1} - ${MONTHS[m2 - 1]}/${d2}`;
@@ -135,6 +154,8 @@ export function parseStages(input: unknown): ParsedStages {
     const max = Number(s.max ?? 0);
     if (!Number.isFinite(max) || max < 0 || max > 100) return { ok: false, error: `"${label}": оноо 0-100 хооронд байна` };
     const endTime = typeof s.endTime === "string" && TIME_RE.test(s.endTime) ? s.endTime : undefined;
+    const lateAfter =
+      typeof s.lateAfter === "string" && !Number.isNaN(Date.parse(s.lateAfter)) ? new Date(s.lateAfter).toISOString() : undefined;
 
     let id = typeof s.id === "string" && SLUG.test(s.id) ? s.id : newId(assignment);
     while (ids.has(id)) id = newId(assignment);
@@ -151,6 +172,7 @@ export function parseStages(input: unknown): ParsedStages {
       ...(endTime ? { endTime } : {}),
       ...(s.final === true ? { final: true } : {}),
       ...(s.catchup === true ? { catchup: true } : {}),
+      ...(lateAfter ? { lateAfter } : {}),
     });
   }
 

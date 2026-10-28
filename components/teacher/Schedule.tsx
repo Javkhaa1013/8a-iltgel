@@ -2,24 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ASSIGNMENTS, PEER_REVIEW_DAYS, rangeLabel, type AssignmentId, type Stage } from "@/lib/stages";
+import { ASSIGNMENTS, PEER_REVIEW_DAYS, formatUB, rangeLabel, type AssignmentId, type Stage } from "@/lib/stages";
 import type { TeacherData } from "./TeacherHome";
 
 // Багш хуваарийг бүрэн удирдана: шат нэмэх/устгах, нэр, төрөл, огноо, цаг, оноо, дараалал.
 export default function Schedule({ stages, submissions, drafts }: TeacherData) {
   const router = useRouter();
-  const [rows, setRows] = useState<Stage[]>(stages);
+  // lateAfter: null = "анхны хугацааг цуцал" гэсэн дохиог сервер рүү явуулна
+  type Row = Omit<Stage, "lateAfter"> & { lateAfter?: string | null };
+  const [rows, setRows] = useState<Row[]>(stages);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const dirty = JSON.stringify(rows) !== JSON.stringify(stages);
   const used = (id: string) => submissions.filter((s) => s.stage_id === id).length + drafts.filter((d) => d.stage_id === id).length;
 
-  const set = (id: string, patch: Partial<Stage>) => setRows((r) => r.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  const remove = (s: Stage) => confirm(`"${s.label}" шатыг устгах уу?`) && setRows((r) => r.filter((x) => x.id !== s.id));
+  const set = (id: string, patch: Partial<Row>) => setRows((r) => r.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const remove = (s: Row) => confirm(`"${s.label}" шатыг устгах уу?`) && setRows((r) => r.filter((x) => x.id !== s.id));
 
   // Нэг даалгаврын дотор дээш/доош зөөнө
-  function move(s: Stage, dir: -1 | 1) {
+  function move(s: Row, dir: -1 | 1) {
     setRows((r) => {
       const group = r.filter((x) => x.assignment === s.assignment);
       const swap = group[group.indexOf(s) + dir];
@@ -62,6 +64,10 @@ export default function Schedule({ stages, submissions, drafts }: TeacherData) {
         <b>Нөхөлт</b> — тухайн шатны хугацаа дууссаны дараа <b>зөвхөн илгээгээгүй</b> сурагчид нөхөж оруулах боломж нээнэ. Тэгж оруулсан ажил{" "}
         <b>&quot;⏰ хоцорсон&quot;</b> гэж тэмдэглэгдэж, онооны хүснэгт болон эцэг эхийн тайланд хоцорсон нь харагдана. Хугацаандаа илгээсэн
         сурагчдын ажил түгжээтэй хэвээр (засах боломжгүй). Нөхөлтийг хаахад хоцорсон сурагчид дахин оруулж чадахгүй.
+      </p>
+      <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <b>⏰ Анхны хугацаа</b> — хугацаа нь дуусчихсан шатны огноог хойшлуулбал анхны хугацаа нь автоматаар тэмдэглэгдэж, түүнээс хойш илгээсэн
+        ажил <b>&quot;хоцорсон&quot;</b> гэж бүртгэгдэнэ (мөрийн баруун талд харагдана). Хоцорсон гэж тооцохоо болих бол <b>✖</b> дарж цуцална.
       </p>
 
       {ASSIGNMENTS.map((a) => {
@@ -161,6 +167,17 @@ export default function Schedule({ stages, submissions, drafts }: TeacherData) {
                         />
                       </td>
                       <td className="whitespace-nowrap p-2 text-right text-xs">
+                        {s.lateAfter ? (
+                          <span
+                            className="mr-2 rounded-lg bg-amber-100 px-2 py-1 font-semibold text-amber-900"
+                            title="Хугацааг нь хойшлуулсан. Үүнээс хойш илгээсэн ажил хоцорсон гэж тэмдэглэгдэнэ."
+                          >
+                            ⏰ {formatUB(s.lateAfter)}
+                            <button onClick={() => set(s.id, { lateAfter: null })} title="Хоцорсон гэж тэмдэглэхээ болих" className="ml-1 text-amber-700">
+                              ✖
+                            </button>
+                          </span>
+                        ) : null}
                         <span className="text-slate-400">{rangeLabel(s)}</span>
                         <button
                           onClick={() => remove(s)}
