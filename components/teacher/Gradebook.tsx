@@ -41,7 +41,10 @@ export default function Gradebook({ now, stages, students, submissions, extensio
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-        <span>✅ илгээсэн · ⏳ нээлттэй, илгээгээгүй · ❌ хугацаа дууссан, илгээгээгүй · 📝 илгээгээгүй ноорог байна · ⏰ сунгалттай · нүдэн дээр дарж үнэлнэ</span>
+        <span>
+          ✅ илгээсэн · ⏰ хоцорч нөхсөн · ⏳ нээлттэй, илгээгээгүй · ❌ хугацаа дууссан, илгээгээгүй · 📝 илгээгээгүй ноорог байна · ⌛ сунгалттай ·
+          🔓 нөхөлт нээлттэй · нүдэн дээр дарж үнэлнэ
+        </span>
         <button onClick={exportCsv} className="ml-auto rounded-xl bg-white px-3 py-2 font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
           ⬇️ Excel (CSV)
         </button>
@@ -94,11 +97,12 @@ export default function Gradebook({ now, stages, students, submissions, extensio
                   const state = windowState(st, ext?.until, at);
                   const draft = drafts.find((d) => d.student_id === s.id && d.stage_id === st.id);
                   const unsentDraft = draft ?? null; // илгээх үед ноорог устдаг
-                  const icon = sub ? "✅" : state === "upcoming" ? "·" : state === "open" ? "⏳" : "❌";
+                  const icon = sub ? (sub.late ? "⏰" : "✅") : state === "upcoming" ? "·" : state === "open" ? "⏳" : "❌";
                   const cell = (
                     <span className="inline-flex items-center gap-1">
-                      {icon}
-                      {ext && <span title="Сунгалттай">⏰</span>}
+                      <span title={sub?.late ? "Хугацаа дууссаны дараа нөхөж илгээсэн" : undefined}>{icon}</span>
+                      {ext && <span title="Сунгалттай">⌛</span>}
+                      {!sub && st.catchup && state === "closed" && <span title="Нөхөлт нээлттэй — сурагч нөхөж оруулж болно">🔓</span>}
                       {sub && <b className={sub.teacher_score === null ? "text-slate-300" : ""}>{sub.teacher_score ?? "—"}</b>}
                     </span>
                   );

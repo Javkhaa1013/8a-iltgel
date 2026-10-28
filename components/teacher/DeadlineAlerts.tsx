@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ASSIGNMENTS, formatUB, stageEnd, timeLeft, windowState } from "@/lib/stages";
 import type { TeacherData } from "./TeacherHome";
@@ -29,8 +30,45 @@ function CopyNames({ names }: { names: string[] }) {
 }
 
 export default function DeadlineAlerts({ now, stages, students, submissions, extensions, drafts, peer, onOpenPeer }: TeacherData & { onOpenPeer: () => void }) {
+  const router = useRouter();
   const at = new Date(now);
   const name = new Map(students.map((s) => [s.id, s.name]));
+  const [busy, setBusy] = useState("");
+
+  // Нөхөлтийг нэг товшилтоор нээх/хаах (Хуваарь хэсэгт ч байгаа тохиргоо)
+  async function toggleCatchup(stageId: string, on: boolean) {
+    setBusy(stageId);
+    const payload = stages.map((s) => (s.id === stageId ? { ...s, catchup: on || undefined } : s));
+    const res = await fetch("/api/stages", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stages: payload }),
+    });
+    setBusy("");
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Хадгалж чадсангүй");
+      return;
+    }
+    router.refresh();
+  }
+
+  // Хугацаа нь дууссан, илгээгээгүй хүүхэдтэй шатууд — нөхөлт нээх боломжтой
+  const closedMissing = stages
+    .filter((st) => windowState(st, null, at) === "closed")
+    .map((st) => ({
+      st,
+      missing: students.filter(
+        (s) =>
+          !submissions.some((x) => x.student_id === s.id && x.stage_id === st.id) &&
+          // сунгалт нь хүчинтэй хүүхэд дээрх "сунгалттай" хэсэгт гарна
+          !extensions.some((e) => e.student_id === s.id && e.stage_id === st.id && windowState(st, e.until, at) === "open")
+      ),
+      lateCount: submissions.filter((x) => x.stage_id === st.id && x.late).length,
+    }))
+    .filter(({ st, missing, lateCount }) => st.catchup || missing.length > 0 || lateCount > 0)
+    .sort((a, b) => stageEnd(b.st).getTime() - stageEnd(a.st).getTime())
+    .slice(0, 3);
 
   const openStages = stages
     .filter((st) => windowState(st, null, at) === "open")
@@ -60,7 +98,7 @@ export default function DeadlineAlerts({ now, stages, students, submissions, ext
     }))
     .filter((x) => x.pending.length);
 
-  if (!openStages.length && !extended.length && !peerOpen.length) return null;
+  if (!openStages.length && !extended.length && !peerOpen.length && !closedMissing.length) return null;
 
   const label = (stageId: string) => {
     const st = stages.find((s) => s.id === stageId)!;
@@ -105,6 +143,48 @@ export default function DeadlineAlerts({ now, stages, students, submissions, ext
           ) : (
             <p className="mt-2 text-sm font-semibold text-emerald-700">🎉 Бүгд илгээсэн</p>
           )}
+        </div>
+      ))}
+
+      {closedMissing.map(({ st, missing, lateCount }) => (
+        <div key={`c-${st.id}`} className={`rounded-2xl p-4 ring-1 ${st.catchup ? "bg-amber-50 ring-amber-200" : "bg-slate-50 ring-slate-200"}`}>
+          <div className="flex flex-wrap items-center gap-2">
+            <b>{label(st.id)}</b>
+            <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs font-bold text-white">⛔ {formatUB(stageEnd(st), false)}-д дууссан</span>
+            {st.catchup && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">🔓 Нөхөлт нээлттэй</span>}
+            <button
+              disabled={busy === st.id}
+              onClick={() => toggleCatchup(st.id, !st.catchup)}
+              className={`ml-auto rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-40 ${
+                st.catchup ? "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50" : "bg-amber-500 text-white hover:bg-amber-600"
+              }`}
+            >
+              {busy === st.id ? "…" : st.catchup ? "🔒 Нөхөлтийг хаах" : "🔓 Нөхөлт нээх"}
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-slate-700">
+            {missing.length > 0 ? (
+              <>
+                <span className="font-semibold">Илгээгээгүй ({missing.length}):</span>{" "}
+                {missing.map((s, i) => (
+                  <span key={s.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/teacher/student/${s.id}`} className="hover:underline">
+                      {s.name}
+                    </Link>
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span className="font-semibold text-emerald-700">🎉 Бүгд илгээсэн</span>
+            )}
+            {lateCount > 0 && <span className="ml-2 font-semibold text-amber-700">⏰ {lateCount} хүүхэд хоцорч нөхсөн</span>}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {st.catchup
+              ? "Зөвхөн илгээгээгүй хүүхдүүд оруулж байна. Оруулсан ажил нь ⏰ хоцорсон гэж тэмдэглэгдэнэ."
+              : "Нөхөлт нээвэл зөвхөн илгээгээгүй хүүхдүүд оруулж чадна (хоцорсон гэж тэмдэглэгдэнэ)."}
+          </p>
         </div>
       ))}
 

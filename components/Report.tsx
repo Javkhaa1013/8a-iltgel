@@ -110,7 +110,8 @@ export default async function Report({ id, forParent = false }: { id: string; fo
                   .map((st) => {
                     const sub = subs.find((s) => s.stage_id === st.id);
                     const ext = exts.find((e) => e.stage_id === st.id);
-                    const late = sub && new Date(sub.updated_at) > stageEnd(st);
+                    // sub.late — хугацаа дууссаны дараа нөхөж оруулсан; бусад тохиолдолд сунгалтаар
+                    const afterEnd = sub && new Date(sub.updated_at) > stageEnd(st);
                     return (
                       <tr key={st.id}>
                         <td className="border border-slate-200 p-2 pl-6">{st.label}</td>
@@ -119,7 +120,13 @@ export default async function Report({ id, forParent = false }: { id: string; fo
                           {sub ? (
                             <>
                               {formatUB(sub.updated_at)}
-                              {late ? <span className="ml-1 text-amber-700">(сунгалтаар)</span> : <span className="ml-1 text-emerald-700">✓ хугацаандаа</span>}
+                              {sub.late ? (
+                                <span className="ml-1 font-semibold text-amber-700">⏰ хоцорч нөхсөн</span>
+                              ) : afterEnd ? (
+                                <span className="ml-1 text-amber-700">(сунгалтаар)</span>
+                              ) : (
+                                <span className="ml-1 text-emerald-700">✓ хугацаандаа</span>
+                              )}
                             </>
                           ) : (
                             <span className="text-rose-600">Илгээгээгүй{ext ? " (сунгалттай)" : ""}</span>

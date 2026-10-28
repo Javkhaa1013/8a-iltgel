@@ -67,6 +67,11 @@ export default async function TeacherSubmissionPage({ params }: { params: Promis
           <Link href={`/teacher/student/${sub.student_id}`} className="rounded-lg bg-violet-100 px-2 py-1 font-semibold text-violet-800 hover:underline">
             {student?.name}
           </Link>
+          {sub.late && (
+            <span className="rounded-lg bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900" title="Хугацаа дууссаны дараа нөхөж илгээсэн">
+              ⏰ Хоцорч нөхсөн
+            </span>
+          )}
         </div>
 
         {/* Бусад шат руу */}
@@ -92,7 +97,7 @@ export default async function TeacherSubmissionPage({ params }: { params: Promis
           <Info
             label="Сүүлд илгээсэн"
             value={`${formatUB(sub.updated_at)} · ${Math.max(1, versions.length)} удаа`}
-            warn={late ? "сунгалтаар" : undefined}
+            warn={sub.late ? "⏰ хоцорч нөхсөн" : late ? "сунгалтаар" : undefined}
           />
           <Info label="Хугацаа" value={`${formatUB(deadline)}${now() > deadline ? " (дууссан)" : ""}`} />
           <Info

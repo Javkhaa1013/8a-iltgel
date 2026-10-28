@@ -20,6 +20,7 @@ create table if not exists public.submissions (
   body text not null default '',
   images jsonb not null default '[]',
   paste_chars integer not null default 0,
+  late boolean not null default false,
   teacher_score numeric,
   published boolean not null default false,
   view_count integer not null default 0,
@@ -82,6 +83,7 @@ create table if not exists public.submission_versions (
 
 alter table public.comments add column if not exists version_no integer;
 alter table public.submissions add column if not exists author_display text not null default 'short'; -- нийтлэл дээрх нэр: short | full | anon
+alter table public.submissions add column if not exists late boolean not null default false; -- хугацаа дууссаны дараа нөхөж илгээсэн
 create table if not exists public.reviews (
   id uuid primary key default gen_random_uuid(),
   submission_id uuid not null references public.submissions(id) on delete cascade,

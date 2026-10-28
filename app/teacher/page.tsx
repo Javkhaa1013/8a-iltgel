@@ -89,6 +89,7 @@ export default async function TeacherPage() {
           images: s.images.length,
           paste_chars: s.paste_chars,
           body_chars: s.body.length,
+          late: s.late,
           teacher_score: s.teacher_score,
           published: s.published,
           author_display: s.author_display,

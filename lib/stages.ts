@@ -23,6 +23,7 @@ export type Stage = {
   endTime?: string; // "HH:MM" — дуусах цаг (хоосон бол тухайн өдрийн 23:59)
   max: number;
   final?: boolean; // нийтэд нийтлэх боломжтой эцсийн бүтээл
+  catchup?: boolean; // хугацаа дууссаны дараа илгээгээгүй сурагчид нөхөж оруулж болно (хоцорсон гэж тэмдэглэгдэнэ)
 };
 
 export const DEFAULT_STAGES: Stage[] = [
@@ -60,6 +61,15 @@ export function windowState(s: Stage, extensionUntil?: string | null, at = now()
   if (at < stageStart(s)) return "upcoming";
   const end = extensionUntil ? Math.max(stageEnd(s).getTime(), new Date(extensionUntil).getTime()) : stageEnd(s).getTime();
   return at.getTime() <= end ? "open" : "closed";
+}
+
+/**
+ * Хугацаа дууссаны дараа нөхөж оруулах боломжтой эсэх.
+ * Багш тухайн шатны "нөхөлт"-ийг нээсэн байх шаардлагатай, бөгөөд зөвхөн хугацаандаа
+ * илгээгээгүй (эсвэл хоцорч нөхсөн) сурагч л оруулна — хугацаандаа илгээсэн ажил түгжээтэй хэвээр.
+ */
+export function catchupOpen(s: Stage, state: WindowState, existing: { late?: boolean } | null | undefined) {
+  return state === "closed" && s.catchup === true && (!existing || existing.late === true);
 }
 
 const MONTHS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
@@ -140,6 +150,7 @@ export function parseStages(input: unknown): ParsedStages {
       max: Math.round(max * 2) / 2,
       ...(endTime ? { endTime } : {}),
       ...(s.final === true ? { final: true } : {}),
+      ...(s.catchup === true ? { catchup: true } : {}),
     });
   }
 

@@ -58,6 +58,11 @@ export default function Schedule({ stages, submissions, drafts }: TeacherData) {
         цагийг хоосон орхивол 23:59 болно. Хугацаа дууссанаас хойш {PEER_REVIEW_DAYS} хоног хөндлөнгийн үнэлгээ нээлттэй. Бүтээлтэй шатыг устгах
         боломжгүй.
       </p>
+      <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <b>Нөхөлт</b> — тухайн шатны хугацаа дууссаны дараа <b>зөвхөн илгээгээгүй</b> сурагчид нөхөж оруулах боломж нээнэ. Тэгж оруулсан ажил{" "}
+        <b>&quot;⏰ хоцорсон&quot;</b> гэж тэмдэглэгдэж, онооны хүснэгт болон эцэг эхийн тайланд хоцорсон нь харагдана. Хугацаандаа илгээсэн
+        сурагчдын ажил түгжээтэй хэвээр (засах боломжгүй). Нөхөлтийг хаахад хоцорсон сурагчид дахин оруулж чадахгүй.
+      </p>
 
       {ASSIGNMENTS.map((a) => {
         const group = rows.filter((s) => s.assignment === a.id);
@@ -82,6 +87,9 @@ export default function Schedule({ stages, submissions, drafts }: TeacherData) {
                     <th className="p-2">Оноо</th>
                     <th className="p-2" title="Энэ шатны бүтээлийг сайтад нийтэлж болно">
                       Нийтлэх
+                    </th>
+                    <th className="p-2" title="Хугацаа дууссаны дараа илгээгээгүй сурагчид нөхөж оруулж болно">
+                      Нөхөлт
                     </th>
                     <th className="p-2" />
                   </tr>
@@ -141,6 +149,15 @@ export default function Schedule({ stages, submissions, drafts }: TeacherData) {
                             )
                           }
                           className="h-4 w-4 accent-violet-600"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!s.catchup}
+                          onChange={(e) => set(s.id, { catchup: e.target.checked || undefined })}
+                          title="Хугацаа дууссаны дараа илгээгээгүй сурагчид нөхөж оруулах боломж"
+                          className="h-4 w-4 accent-amber-500"
                         />
                       </td>
                       <td className="whitespace-nowrap p-2 text-right text-xs">

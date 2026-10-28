@@ -8,7 +8,7 @@ import { findStage, getDraft, getExtension, getStages, listSubmissions } from "@
 import ReviewList from "@/components/ReviewList";
 import RubricForm from "@/components/RubricForm";
 import { rubricFor } from "@/lib/rubric";
-import { ASSIGNMENTS, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, windowState } from "@/lib/stages";
+import { ASSIGNMENTS, catchupOpen, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, windowState } from "@/lib/stages";
 import { commentViews, reviewViews, versionViews } from "@/lib/views";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,8 @@ export default async function StagePage({ params }: { params: Promise<{ stageId:
   const state = windowState(stage, ext?.until, at);
   if (state === "upcoming") redirect("/me");
   const deadline = ext && new Date(ext.until) > stageEnd(stage) ? new Date(ext.until) : stageEnd(stage);
+  // Багш нөхөлт нээсэн бол хоцорсон сурагч хугацаа дууссан ч оруулна (ажил нь "хоцорсон" гэж тэмдэглэгдэнэ)
+  const catchup = catchupOpen(stage, state, sub);
   const assignment = ASSIGNMENTS.find((a) => a.id === stage.assignment)!;
 
   // Өмнөх үе шатын бүтээл (жишээ нь Ноорог-2 бичихэд Ноорог-1-ийг харах, эцсийн бүтээлд Ноорог-2-оос эхлэх)
@@ -66,8 +68,9 @@ export default async function StagePage({ params }: { params: Promise<{ stageId:
           </span>
         </div>
 
-        {state === "open" ? (
+        {state === "open" || catchup ? (
           <StageEditor
+            catchup={catchup}
             stage={{ id: stage.id, kind: stage.kind, label: stage.label }}
             deadline={deadline.toISOString()}
             serverNow={at.toISOString()}
@@ -77,7 +80,8 @@ export default async function StagePage({ params }: { params: Promise<{ stageId:
           />
         ) : (
           <div className="mt-4 rounded-2xl bg-slate-900 px-5 py-4 text-white">
-            ⛔ Хугацаа {formatUB(deadline)}-д дууссан. {sub ? "Таны илгээсэн бүтээл доор байна." : "Та энэ шатыг илгээгээгүй байна."}
+            ⛔ Хугацаа {formatUB(deadline)}-д дууссан.{" "}
+            {sub ? (sub.late ? "Таны хоцорч нөхсөн бүтээл доор байна." : "Таны илгээсэн бүтээл доор байна.") : "Та энэ шатыг илгээгээгүй байна."}
             {!sub && draft && <div className="mt-1 text-sm text-amber-300">Танд илгээгээгүй ноорог үлдсэн байна — багшдаа хэлээрэй.</div>}
           </div>
         )}

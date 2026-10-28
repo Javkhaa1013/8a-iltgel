@@ -11,6 +11,8 @@ type Content = { title: string; body: string; images: string[]; updated_at: stri
 type Props = {
   stage: { id: string; kind: "image" | "text"; label: string };
   deadline: string;
+  /** Хугацаа дууссан ч багш нөхөлт нээсэн — илгээх боломжтой, ажил "хоцорсон" гэж тэмдэглэгдэнэ */
+  catchup?: boolean;
   serverNow: string;
   existing: Content | null; // сүүлд илгээсэн
   serverDraft: Content | null; // серверт автоматаар хадгалагдсан, илгээгээгүй ноорог
@@ -43,11 +45,11 @@ function fmt(ms: number) {
 const same = (a: { title: string; body: string; images: string[] }, b: { title: string; body: string; images: string[] } | null) =>
   !!b && a.title === b.title && a.body === b.body && a.images.join("|") === b.images.join("|");
 
-export default function StageEditor({ stage, deadline, serverNow, existing, serverDraft, previous }: Props) {
+export default function StageEditor({ stage, deadline, catchup = false, serverNow, existing, serverDraft, previous }: Props) {
   const router = useRouter();
   const localKey = `nootlog-${stage.id}`;
   const left = useCountdown(deadline, serverNow);
-  const closed = left <= 0;
+  const closed = left <= 0 && !catchup;
 
   // Илгээх үед ноорог устдаг тул ноорог байгаа бол илгээснээс хойш хийсэн өөрчлөлт гэсэн үг
   const draftIsNewer = !!serverDraft && !same(serverDraft, existing);
@@ -167,13 +169,24 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
     try {
       localStorage.removeItem(localKey);
     } catch {}
-    setMsg({ ok: true, text: "✅ Амжилттай илгээлээ! Хугацаа дуусахаас өмнө дахин засаж болно." });
+    setMsg({
+      ok: true,
+      text: catchup
+        ? "✅ Илгээлээ! Хугацаа дууссаны дараа оруулсан тул багшид \"⏰ хоцорсон\" гэж харагдана."
+        : "✅ Амжилттай илгээлээ! Хугацаа дуусахаас өмнө дахин засаж болно.",
+    });
     router.refresh();
   }
 
   const words = body.trim() ? body.trim().split(/\s+/).length : 0;
   const urgent = left < 24 * 3600_000;
-  const timerCls = closed ? "bg-slate-900 text-white" : urgent ? "bg-rose-600 text-white" : "bg-violet-600 text-white";
+  const timerCls = catchup
+    ? "bg-amber-500 text-white"
+    : closed
+      ? "bg-slate-900 text-white"
+      : urgent
+        ? "bg-rose-600 text-white"
+        : "bg-violet-600 text-white";
 
   const saveLabel =
     save.kind === "saving"
@@ -188,7 +201,7 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
     <>
       {/* Утсан дээр хугацаа үргэлж харагдана */}
       <div className={`sticky top-0 z-30 -mx-4 mt-3 flex items-center justify-between px-4 py-2 text-sm font-bold lg:hidden ${timerCls}`}>
-        <span>⏳ {fmt(left)}</span>
+        <span>{catchup ? "⏰ Хоцорч нөхөж байна" : `⏳ ${fmt(left)}`}</span>
         {unsent && !closed && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">Илгээгээгүй</span>}
       </div>
 
@@ -298,15 +311,37 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
             disabled={saving || closed || uploading > 0 || !unsent}
             className="mt-2 w-full rounded-xl bg-violet-600 py-3.5 font-bold text-white shadow hover:bg-violet-700 disabled:opacity-50"
           >
-            {closed ? "⛔ Хугацаа дууссан" : saving ? "Илгээж байна…" : !unsent ? "✅ Илгээсэн (өөрчлөлтгүй)" : existing ? "💾 Шинэчилж илгээх" : "📤 Илгээх"}
+            {closed
+              ? "⛔ Хугацаа дууссан"
+              : saving
+                ? "Илгээж байна…"
+                : !unsent
+                  ? "✅ Илгээсэн (өөрчлөлтгүй)"
+                  : catchup
+                    ? existing
+                      ? "💾 Хоцорсон ажлаа шинэчлэх"
+                      : "⏰ Хоцорч илгээх"
+                    : existing
+                      ? "💾 Шинэчилж илгээх"
+                      : "📤 Илгээх"}
           </button>
           <p className="mt-2 text-center text-xs text-slate-400">Бичсэн зүйл тань автоматаар хадгалагдана, гэхдээ багшид очихын тулд заавал &quot;Илгээх&quot; дарна.</p>
         </div>
 
         <aside className="flex flex-col gap-4">
           <div className={`hidden rounded-2xl p-4 text-center lg:block ${timerCls}`}>
-            <div className="text-xs font-bold uppercase tracking-wider opacity-80">Хугацаа дуусахад</div>
-            <div className="mt-1 font-display text-xl font-bold">{fmt(left)}</div>
+            {catchup ? (
+              <>
+                <div className="text-xs font-bold uppercase tracking-wider opacity-80">Нөхөж оруулах</div>
+                <div className="mt-1 font-display text-lg font-bold">⏰ Хугацаа дууссан</div>
+                <div className="mt-1 text-xs opacity-90">Багш нөхөлт нээсэн. Оруулсан ажил &quot;хоцорсон&quot; гэж тэмдэглэгдэнэ.</div>
+              </>
+            ) : (
+              <>
+                <div className="text-xs font-bold uppercase tracking-wider opacity-80">Хугацаа дуусахад</div>
+                <div className="mt-1 font-display text-xl font-bold">{fmt(left)}</div>
+              </>
+            )}
           </div>
 
           {previous && (
@@ -338,7 +373,11 @@ export default function StageEditor({ stage, deadline, serverNow, existing, serv
             <b>Санамж</b>
             <ul className="mt-1 list-disc space-y-1 pl-4">
               <li>Бүтээлийг зөвхөн та болон багш харна.</li>
-              <li>Хугацаа дууссаны дараа засах, оруулах боломжгүй.</li>
+              <li>
+                {catchup
+                  ? "Багш нөхөлтийг хаахад оруулах боломж дуусна — хойшлуулалгүй илгээчихээрэй."
+                  : "Хугацаа дууссаны дараа засах, оруулах боломжгүй."}
+              </li>
               <li>Илгээх бүр хувилбар болж хадгалагдана — багш таны засварын явцыг харна.</li>
               <li>Өөрийн үгээр бичээрэй — бусдын текстийг хуулсан эсэхийг систем шалгадаг.</li>
             </ul>

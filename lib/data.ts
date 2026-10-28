@@ -105,6 +105,7 @@ function normalizeSubmission(s: Partial<Submission>): Submission {
     body: s.body ?? "",
     images: Array.isArray(s.images) ? s.images : [],
     paste_chars: Number(s.paste_chars ?? 0),
+    late: s.late === true,
     view_count: Number(s.view_count ?? 0),
     published: s.published === true,
     author_display: s.author_display === "full" || s.author_display === "anon" ? s.author_display : "short",
@@ -166,7 +167,7 @@ type Content = { title?: string; body?: string; images?: string[]; paste_chars?:
  * Бүтээлийг хадгална: шинээр үүсгэх эсвэл шинэчлэх, хувилбарын түүхэнд нэмэх, ноорогийг устгах.
  * Хугацааны шалгалтыг дуудаж буй газар хийнэ.
  */
-export async function saveSubmission(studentId: string, stageId: string, content: Content, pastedDelta = 0) {
+export async function saveSubmission(studentId: string, stageId: string, content: Content, pastedDelta = 0, late = false) {
   const at = now().toISOString();
   const [existing] = await listSubmissions({ student_id: studentId, stage_id: stageId });
   let sub: Submission;
@@ -184,6 +185,7 @@ export async function saveSubmission(studentId: string, stageId: string, content
         student_id: studentId,
         stage_id: stageId,
         paste_chars: pastedDelta,
+        late,
         // Supabase-ийн default-уудыг локал JSON хадгалалтад ч бичнэ —
         // байхгүй бол уншсан тоо (view_count) харьцуулж шинэчлэхэд таарахгүй
         teacher_score: null,
@@ -224,7 +226,9 @@ export async function getExtension(studentId: string, stageId: string) {
 const mixKey = (stageId: string, studentId: string) => createHash("sha256").update(stageId + studentId).digest("hex");
 
 export function peerTargets(stage: Stage, reviewerId: string, students: Student[], submissions: Submission[]) {
-  const byStudent = new Map(submissions.filter((s) => s.stage_id === stage.id).map((s) => [s.student_id, s]));
+  // Хоцорч нөхсөн ажлыг хуваарилалтад оруулахгүй — үнэлгээний хугацаа дундуур
+  // шинэ ажил нэмэгдвэл бусдын хуваарь хөдөлнө
+  const byStudent = new Map(submissions.filter((s) => s.stage_id === stage.id && !s.late).map((s) => [s.student_id, s]));
   const order = students.map((s) => s.id).sort((a, b) => (mixKey(stage.id, a) < mixKey(stage.id, b) ? -1 : 1));
   const start = order.indexOf(reviewerId);
   if (start < 0) return [];

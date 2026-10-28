@@ -32,6 +32,7 @@ export type Submission = {
   body: string;
   images: string[];
   paste_chars: number;
+  late: boolean; // хугацаа дууссаны дараа нөхөж илгээсэн
   teacher_score: number | null;
   published: boolean;
   author_display: "short" | "full" | "anon"; // нийтлэл дээрх нэрийн хэлбэр

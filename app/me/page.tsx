@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import StudentGuide from "@/components/StudentGuide";
 import { currentStudent } from "@/lib/auth";
 import { getStages, listComments, listExtensions, listReviews, listStudents, listSubmissions, peerReviewOpen, peerTargets } from "@/lib/data";
-import { ASSIGNMENTS, assignmentMax, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
+import { ASSIGNMENTS, assignmentMax, catchupOpen, formatUB, now, peerReviewEnd, rangeLabel, stageEnd, stageStart, timeLeft, windowState } from "@/lib/stages";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Миний даалгаврууд · 8А" };
@@ -51,7 +51,7 @@ export default async function MePage() {
         </div>
         <p className="mt-1 text-slate-500">
           Хугацааг анхаараарай: хугацаа дууссаны дараа <b>оруулах боломжгүй</b>. Хугацааны өмнө хэдэн ч удаа засаж болно. Дуусаад заавал{" "}
-          <b>&quot;Илгээх&quot;</b> дарна.
+          <b>&quot;Илгээх&quot;</b> дарна. Багш нөхөлт нээсэн тохиолдолд хоцорсон ажлыг оруулж болох ч <b>&quot;хоцорсон&quot;</b> гэж тэмдэглэгдэнэ.
         </p>
 
         {peerTasks.some((t) => t.targets.length) && (
@@ -91,12 +91,16 @@ export default async function MePage() {
                   const ext = exts.find((e) => e.stage_id === st.id);
                   const state = windowState(st, ext?.until, at);
                   const deadline = ext && new Date(ext.until) > stageEnd(st) ? new Date(ext.until) : stageEnd(st);
+                  // Багш нөхөлт нээсэн бол хоцорсон сурагч хугацаа дууссан ч оруулж болно
+                  const catchup = catchupOpen(st, state, sub);
                   const badge =
                     state === "upcoming"
                       ? { cls: "bg-slate-100 text-slate-600", text: `🔒 ${formatUB(stageStart(st), false)}-нд нээгдэнэ` }
                       : state === "open"
                         ? { cls: "bg-violet-100 text-violet-800", text: `⏳ ${timeLeft(deadline, at)} үлдсэн` }
-                        : { cls: "bg-slate-800 text-white", text: "⛔ Хугацаа дууссан" };
+                        : catchup
+                          ? { cls: "bg-amber-100 text-amber-900", text: "⏰ Нөхөж оруулах нээлттэй" }
+                          : { cls: "bg-slate-800 text-white", text: "⛔ Хугацаа дууссан" };
                   return (
                     <div key={st.id} className={`flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ${state === "open" ? "ring-violet-300" : "ring-slate-100"}`}>
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
@@ -110,7 +114,11 @@ export default async function MePage() {
                       <div className="mt-3 flex-1 text-sm">
                         {sub ? (
                           <>
-                            <div className="text-emerald-700">✅ Илгээсэн: {formatUB(sub.updated_at)}</div>
+                            {sub.late ? (
+                              <div className="text-amber-700">⏰ Хоцорч нөхсөн: {formatUB(sub.updated_at)}</div>
+                            ) : (
+                              <div className="text-emerald-700">✅ Илгээсэн: {formatUB(sub.updated_at)}</div>
+                            )}
                             {(commentCounts.get(sub.id) ?? 0) > 0 && <div className="text-amber-700">💬 {commentCounts.get(sub.id)} сэтгэгдэл</div>}
                             {sub.teacher_score !== null && (
                               <div className="font-bold text-slate-800">
@@ -119,17 +127,33 @@ export default async function MePage() {
                             )}
                           </>
                         ) : (
-                          <div className="text-slate-400">{state === "closed" ? "❌ Илгээгээгүй" : "Илгээгээгүй"}</div>
+                          <div className={catchup ? "font-semibold text-amber-700" : "text-slate-400"}>
+                            {catchup ? "⏰ Илгээгээгүй — нөхөж оруулж болно" : state === "closed" ? "❌ Илгээгээгүй" : "Илгээгээгүй"}
+                          </div>
                         )}
                       </div>
                       {state !== "upcoming" && (
                         <Link
                           href={`/me/${st.id}`}
                           className={`mt-3 rounded-xl px-3 py-2 text-center text-sm font-bold ${
-                            state === "open" ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            state === "open"
+                              ? "bg-violet-600 text-white hover:bg-violet-700"
+                              : catchup
+                                ? "bg-amber-500 text-white hover:bg-amber-600"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                           }`}
                         >
-                          {state === "open" ? (sub ? "✏️ Засах / сэтгэгдэл" : "📤 Оруулах") : sub ? "👀 Харах" : "Дэлгэрэнгүй"}
+                          {state === "open"
+                            ? sub
+                              ? "✏️ Засах / сэтгэгдэл"
+                              : "📤 Оруулах"
+                            : catchup
+                              ? sub
+                                ? "✏️ Хоцорсон ажлаа засах"
+                                : "⏰ Нөхөж оруулах"
+                              : sub
+                                ? "👀 Харах"
+                                : "Дэлгэрэнгүй"}
                         </Link>
                       )}
                     </div>

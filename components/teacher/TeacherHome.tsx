@@ -22,6 +22,7 @@ export type SubSummary = {
   images: number;
   paste_chars: number;
   body_chars: number;
+  late: boolean; // хугацаа дууссаны дараа нөхөж илгээсэн
   teacher_score: number | null;
   published: boolean;
   author_display: "short" | "full" | "anon";
